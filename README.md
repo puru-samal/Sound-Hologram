@@ -40,16 +40,16 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
 ## main.py
 ### Commands
 
-* open_max
+* `open_max`
   - Opens wfs.maxpat. Dependencies must be installed for its proper operation.
   
-* init_conn
+* `init_conn`
   - Initializes the client-server connection between Max and Python.
   
-* init_wfs
+* `init_wfs`
   - Initializes the state of the wfs system.
   
-* test_signal num 
+* `test_signal num` 
   - Specifies the test_signal to be used for playback.
     - Arguments:
       - num : Specifies the test signal to be used.
@@ -62,32 +62,32 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
           - zero_pad    (float) : Ratio of dur that is reserved for zero-padding. Padding is applied both at the front and back.
           - repititions   (int) : number of repititions of the signal
   
-* set_pos idx angle dist
+* `set_pos idx angle dist`
   - Sets the position of a source.
     - Arguments: 
       - idx     (int) : Index of the source position [1..Num Sources] 
       - angle (float) : Angle in degrees [-90...90]
       - dist  (float) : Ratio of the source. Is multiplied by YM
       
-* play_wfs
+* `play_wfs`
   - Plays the test_signal in the current configuration.
   
-* mute idx
+* `mute idx`
   - Mutes a source.
     - Arguments: 
       - idx (int) : Index of the source position [1..Num Sources]
   
-* unmute idx
+* `unmute idx`
   - Unmutes a source.
     - Arguments: 
       - idx (int) : Index of the source position [1..Num Sources]
   
-* plaback filename
+* `plaback filename`
   - Plays back a .txt file containing a sequence of commands.
     - Arguments: 
       - filename : A text file with a sequence of commands.
   
-* random_two_source runs lo hi sep dist
+* `random_two_source runs lo hi sep dist`
   - Runs the sequence of commands for the random_two_source experiment.
     - Arguments: 
       - runs   (int) : Number of iterations
@@ -96,11 +96,12 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
       - sep  (float) : The separation between two sources
       - dist (float) : Ratio of the source. Is multiplied by YM
 
-* quit 
+* `quit` 
   - Quits the shell
 
 
 ### Example usuage w/ 2 sources
+```
 open_max       # Wait for Max to open
 init_conn 
 init_spat
@@ -113,21 +114,25 @@ set_pos 1 -60 0.6
 set_pos 2 60 0.6
 play_wfs
 quit
-
+```
 ### Example running commands stored in a .txt file
+```
 open_max       # Wait for Max to open
 init_conn 
 init_spat
 test_signal 0
 unmute 0      # Unmute all sources, all sources are muted by default
 playback filename.txt
+```
 
 ### Example running the random_two_source experiment
+```
 open_max       # Wait for Max to open
 init_conn 
 init_spat
 test_signal 0
 unmute 0      # Unmute all sources, all sources are muted by default
 random_two_source 10 -30.0 30.0 5.0 0.5
+```
 
 
