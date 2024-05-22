@@ -1,0 +1,9 @@
+set_pos 1 -90 0.3
+set_pos 2 90 0.3
+play_wfs
+set_pos 1 -60 0.6 
+set_pos 2 60 0.6
+play_wfs
+set_pos 1 -45 0.5 
+set_pos 2 45 0.5
+play_wfs

@@ -1,0 +1,182 @@
+# ==============================================================================
+# File: "/Volumes/Macintosh HD/Users/puruboii/Desktop/SoundHologram/auto_calibrate/config.txt"
+# Exported by: Purusottam Samal
+# puruboii@Purusottams-MacBook-Air - macOS 12.4.0
+# 21-feb-2024 03:00:01
+# Origin: spat5.viewer [5.3.2] - Max [8.5.1 (b5f7fbb05b6)] - x86_64
+# Origin patcher: "/Volumes/Macintosh HD/Users/puruboii/Desktop/SoundHologram/auto_calibrate/wfs_test.maxpat"
+# Content: 1308 OSC messages
+# ============================================================================== 
+/stereo/number 0
+/subwoofer/number 0
+/listener/visible 1
+/listener/editable 0
+/listener/select 0
+/listener/xyz 0.0 0.0 0.0
+/listener/constraint/circular 0
+/listener/coordinates/visible 1
+/listener/orientation/mode "default"
+/listener/orientation 0.0 0.0 0.0 1.0
+/listener/orientation/visible 0
+/listener/lookat/xyz 0.0 1.0 0.0
+/listener/proportion 100.0
+/listener/color 0.0 0.0 0.0 0.0
+/listener/headphones/visible 0
+/multi/number 0
+/microphone/number 0
+/eigenmike/number 0
+/format "xyz"
+/background/color 0.709804 0.709804 0.709804 1.0
+/backgroundimage/file "none"
+/backgroundimage/visible 1
+/backgroundimage/opacity 1.0
+/backgroundimage/scale 100.0
+/backgroundimage/angle 0.0
+/backgroundimage/offset/xy 0.0 0.0
+/backgroundimage/quality "medium"
+/display/zoom 30
+/display/offset/xyz 0.0 0.0 0.0
+/display/zoom/lock 0
+/axis/visible 1
+/axis/label/visible 1
+/axis/origin/visible 1
+/axis/color 1.0 1.0 1.0 1.0
+/axis/thickness 2.0
+/grid/visible 1
+/grid/mode "cartesian"
+/grid/spacing 0.1
+/grid/line/number 50
+/grid/angulardivisions/number 16
+/grid/angulardivisions/visible 0
+/grid/dashed 0
+/grid/color 1.0 1.0 1.0 0.501961
+/grid/thickness 1.0
+/grid/unitcircle/visible 1
+/grid/unitcircle/color 0.501961 0.501961 0.501961 0.239216
+/grid/unitcircle/radius 1.0
+/legend/visible 1
+/legend/color 1.0 1.0 1.0 1.0
+/legend/unit "meters"
+/emphasis/source 1
+/emphasis/stereo 1
+/emphasis/speaker 0
+/emphasis/microphone 0
+/ruler/visible 0
+/ruler/color 1.0 1.0 1.0 1.0
+/ruler/unit "meters"
+/hoa/number 0
+/anchor/number 0
+/phone/number 0
+/area/number 0
+/path/number 0
+/speakerhull/visible 0
+/speakerhull/color 0.0 0.0 0.0 1.0
+/speakerhull/fill 0
+/speakerhull/fill/color 0.0 0.0 0.0 0.298039
+/settings/visible 0
+/settings/editable 1
+/layout automatic
+/usurp 0
+/window/title "Spat Viewer"
+/window/visible 1
+/window/moveable 1
+/window/resizable 1
+/window/enable 1
+/window/bounds 1799 306 800 400
+/window/background/color 0.827451 0.827451 0.827451 1.0
+/window/opaque 1
+/window/titlebar 1
+/window/fullscreen 0
+/window/minimise 0
+/window/scale 100.0
+/window/rendering/engine "CoreGraphics Renderer"
+/window/rendering/fps/visible 0
+/window/floating 0
+/window/hidesondeactivate 0
+/window/buttons/close 1
+/window/buttons/minimise 1
+/window/buttons/maximise 1
+/display/offset/x 0
+/display/offset/y -130
+/display/zoom 45
+/grid/mode "circular"
+/grid/spacing 0.452125
+/grid/angulardivisions/visible 1
+/grid/angulardivisions/number 30
+/speaker/number 64
+/speaker/*/visible 1
+/speaker/*/editable 0
+/speaker/*/label/visible 1
+/speaker/*/proportion 1.0
+/speaker/1/xyz -1.8197 3.617 0.0
+/speaker/2/xyz -1.7610000000000001 3.617 0.0
+/speaker/3/xyz -1.7023000000000001 3.617 0.0
+/speaker/4/xyz -1.6436000000000002 3.617 0.0
+/speaker/5/xyz -1.5849000000000002 3.617 0.0
+/speaker/6/xyz -1.5262000000000002 3.617 0.0
+/speaker/7/xyz -1.4675000000000002 3.617 0.0
+/speaker/8/xyz -1.4088000000000003 3.617 0.0
+/speaker/9/xyz -1.3501000000000003 3.617 0.0
+/speaker/10/xyz -1.2914000000000003 3.617 0.0
+/speaker/11/xyz -1.2327000000000004 3.617 0.0
+/speaker/12/xyz -1.1740000000000004 3.617 0.0
+/speaker/13/xyz -1.1153000000000004 3.617 0.0
+/speaker/14/xyz -1.0566000000000004 3.617 0.0
+/speaker/15/xyz -0.9979000000000005 3.617 0.0
+/speaker/16/xyz -0.9392000000000005 3.617 0.0
+/speaker/17/xyz -0.8805000000000005 3.617 0.0
+/speaker/18/xyz -0.8218000000000005 3.617 0.0
+/speaker/19/xyz -0.7631000000000006 3.617 0.0
+/speaker/20/xyz -0.7044000000000006 3.617 0.0
+/speaker/21/xyz -0.6457000000000006 3.617 0.0
+/speaker/22/xyz -0.5870000000000006 3.617 0.0
+/speaker/23/xyz -0.5283000000000007 3.617 0.0
+/speaker/24/xyz -0.4696000000000007 3.617 0.0
+/speaker/25/xyz -0.4109000000000007 3.617 0.0
+/speaker/26/xyz -0.35220000000000073 3.617 0.0
+/speaker/27/xyz -0.29350000000000076 3.617 0.0
+/speaker/28/xyz -0.23480000000000079 3.617 0.0
+/speaker/29/xyz -0.1761000000000008 3.617 0.0
+/speaker/30/xyz -0.11740000000000084 3.617 0.0
+/speaker/31/xyz -0.05870000000000086 3.617 0.0
+/speaker/32/xyz -8.881784197001252e-16 3.617 0.0
+/speaker/33/xyz 0.058699999999999086 3.617 0.0
+/speaker/34/xyz 0.11739999999999906 3.617 0.0
+/speaker/35/xyz 0.17609999999999904 3.617 0.0
+/speaker/36/xyz 0.234799999999999 3.617 0.0
+/speaker/37/xyz 0.293499999999999 3.617 0.0
+/speaker/38/xyz 0.35219999999999896 3.617 0.0
+/speaker/39/xyz 0.41089999999999893 3.617 0.0
+/speaker/40/xyz 0.4695999999999989 3.617 0.0
+/speaker/41/xyz 0.5282999999999989 3.617 0.0
+/speaker/42/xyz 0.5869999999999989 3.617 0.0
+/speaker/43/xyz 0.6456999999999988 3.617 0.0
+/speaker/44/xyz 0.7043999999999988 3.617 0.0
+/speaker/45/xyz 0.7630999999999988 3.617 0.0
+/speaker/46/xyz 0.8217999999999988 3.617 0.0
+/speaker/47/xyz 0.8804999999999987 3.617 0.0
+/speaker/48/xyz 0.9391999999999987 3.617 0.0
+/speaker/49/xyz 0.9978999999999987 3.617 0.0
+/speaker/50/xyz 1.0565999999999987 3.617 0.0
+/speaker/51/xyz 1.1152999999999986 3.617 0.0
+/speaker/52/xyz 1.1739999999999986 3.617 0.0
+/speaker/53/xyz 1.2326999999999986 3.617 0.0
+/speaker/54/xyz 1.2913999999999985 3.617 0.0
+/speaker/55/xyz 1.3500999999999985 3.617 0.0
+/speaker/56/xyz 1.4087999999999985 3.617 0.0
+/speaker/57/xyz 1.4674999999999985 3.617 0.0
+/speaker/58/xyz 1.5261999999999984 3.617 0.0
+/speaker/59/xyz 1.5848999999999984 3.617 0.0
+/speaker/60/xyz 1.6435999999999984 3.617 0.0
+/speaker/61/xyz 1.7022999999999984 3.617 0.0
+/speaker/62/xyz 1.7609999999999983 3.617 0.0
+/speaker/63/xyz 1.8196999999999983 3.617 0.0
+/speaker/64/xyz 1.8783999999999983 3.617 0.0
+/source/number 2
+/source/*/visible 1
+/source/*/editable 1
+/source/*/coordinates/visible 1
+/source/*/label/visible 1
+/source/*/mute 1
+/source/1/aed -90.0 0 1.8085
+/source/2/aed 90.0 0 1.8085

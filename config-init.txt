@@ -1,0 +1,105 @@
+# ==============================================================================
+# File: "/Volumes/Macintosh HD/Users/puruboii/Desktop/SoundHologram/auto_calibrate/config.txt"
+# Exported by: Purusottam Samal
+# puruboii@Purusottams-MacBook-Air - macOS 12.4.0
+# 21-feb-2024 03:00:01
+# Origin: spat5.viewer [5.3.2] - Max [8.5.1 (b5f7fbb05b6)] - x86_64
+# Origin patcher: "/Volumes/Macintosh HD/Users/puruboii/Desktop/SoundHologram/auto_calibrate/wfs_test.maxpat"
+# Content: 1308 OSC messages
+# ============================================================================== 
+/stereo/number 0
+/subwoofer/number 0
+/listener/visible 1
+/listener/editable 0
+/listener/select 0
+/listener/xyz 0.0 0.0 0.0
+/listener/constraint/circular 0
+/listener/coordinates/visible 1
+/listener/orientation/mode "default"
+/listener/orientation 0.0 0.0 0.0 1.0
+/listener/orientation/visible 0
+/listener/lookat/xyz 0.0 1.0 0.0
+/listener/proportion 100.0
+/listener/color 0.0 0.0 0.0 0.0
+/listener/headphones/visible 0
+/multi/number 0
+/microphone/number 0
+/eigenmike/number 0
+/format "xyz"
+/background/color 0.709804 0.709804 0.709804 1.0
+/backgroundimage/file "none"
+/backgroundimage/visible 1
+/backgroundimage/opacity 1.0
+/backgroundimage/scale 100.0
+/backgroundimage/angle 0.0
+/backgroundimage/offset/xy 0.0 0.0
+/backgroundimage/quality "medium"
+/display/zoom 30
+/display/offset/xyz 0.0 0.0 0.0
+/display/zoom/lock 0
+/axis/visible 1
+/axis/label/visible 1
+/axis/origin/visible 1
+/axis/color 1.0 1.0 1.0 1.0
+/axis/thickness 2.0
+/grid/visible 1
+/grid/mode "cartesian"
+/grid/spacing 0.1
+/grid/line/number 50
+/grid/angulardivisions/number 16
+/grid/angulardivisions/visible 0
+/grid/dashed 0
+/grid/color 1.0 1.0 1.0 0.501961
+/grid/thickness 1.0
+/grid/unitcircle/visible 1
+/grid/unitcircle/color 0.501961 0.501961 0.501961 0.239216
+/grid/unitcircle/radius 1.0
+/legend/visible 1
+/legend/color 1.0 1.0 1.0 1.0
+/legend/unit "meters"
+/emphasis/source 1
+/emphasis/stereo 1
+/emphasis/speaker 0
+/emphasis/microphone 0
+/ruler/visible 0
+/ruler/color 1.0 1.0 1.0 1.0
+/ruler/unit "meters"
+/hoa/number 0
+/anchor/number 0
+/phone/number 0
+/area/number 0
+/path/number 0
+/speakerhull/visible 0
+/speakerhull/color 0.0 0.0 0.0 1.0
+/speakerhull/fill 0
+/speakerhull/fill/color 0.0 0.0 0.0 0.298039
+/settings/visible 0
+/settings/editable 1
+/layout automatic
+/usurp 0
+/window/title "Spat Viewer"
+/window/visible 1
+/window/moveable 1
+/window/resizable 1
+/window/enable 1
+/window/bounds 1799 306 800 400
+/window/background/color 0.827451 0.827451 0.827451 1.0
+/window/opaque 1
+/window/titlebar 1
+/window/fullscreen 0
+/window/minimise 0
+/window/scale 100.0
+/window/rendering/engine "CoreGraphics Renderer"
+/window/rendering/fps/visible 0
+/window/floating 0
+/window/hidesondeactivate 0
+/window/buttons/close 1
+/window/buttons/minimise 1
+/window/buttons/maximise 1
+/display/offset/x 0
+/display/offset/y -130
+/display/zoom 45
+/grid/mode "circular"
+/grid/spacing 0.452125
+/grid/angulardivisions/visible 1
+/grid/angulardivisions/number 30
