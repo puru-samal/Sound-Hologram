@@ -100,7 +100,7 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
   - Quits the shell
 
 
-### Example usuage w/ 2 sources
+### Example usage w/ 2 sources
 ```
 open_max       # Wait for Max to open
 init_conn 
