@@ -13,13 +13,10 @@ test_signal.py       - A helper file to generate test signals.
                        Currenly supports LogSineSweeps and White Noise.
 test_expt.txt        - A sequence of commands to main.py can be 'played back' using valid .txt files.
                        This file provides an example of one such use.
-test_signal.wav      - The file that will be played by wfs.maxpat. Can be replaced with any file.
-                       As long as the name used is same, Max will play it. 
 wfs.maxpat           - The Max patch that implements wavefield synthesis.
                        Also implements simultaneous playback-recording.
                        Controlled by main.py.
                        
-
 
 
 
