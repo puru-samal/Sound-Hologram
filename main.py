@@ -19,7 +19,7 @@ from osc4py3 import oscbuildparse
 from osc4py3 import oscmethod as osm
 import logging
 import subprocess
-
+import preset_generator
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -63,6 +63,7 @@ class ExptShell(cmd.Cmd):
     NUM_SOURCES = 2
     SAMPLE_RATE = 48000  # Make sure Max is set to the same
     TEST_SIG_FILENAME = "test_signal.wav"
+    SOURCE_POS_DICT = {}
 
     # HELPERS
 
@@ -114,6 +115,7 @@ class ExptShell(cmd.Cmd):
             osc_udp_server(self.IP, self.SERVER_PORT, self.SERVER)
             self.check_conn()
             self.block_until_recieved()
+            print("SUCCESS: Connection established.")
 
         except:
             print("Error initializing")
@@ -138,6 +140,7 @@ class ExptShell(cmd.Cmd):
 
         for i in range(self.NUM_SOURCES):
             sources.set_source_pos(i+1, [angles[i], 0, self.YM/2])
+            self.SOURCE_POS_DICT[i+1] = [angles[i], 0, self.YM/2]
 
         # TODO: Handle error if config_init doesnot exist
 
@@ -157,6 +160,7 @@ class ExptShell(cmd.Cmd):
             "/init-spat/preset/load", ",s", [filename])
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
+        print("SUCCESS: spat5.wfs~ initialized.")
         return
 
     def do_test_signal(self, arg):
@@ -205,10 +209,12 @@ class ExptShell(cmd.Cmd):
             "/playfile/open", ",s", [self.TEST_SIG_FILENAME])
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
-        print(" Set to play test_signal.wav")
+        print("SUCCESS: test signal set.")
 
     def do_set_pos(self, arg):
-        'Set Sourse Position: set_pos index angle distance'
+        'Set Source Position: set_pos index angle distance'
+        'Keep in mind, distance is multiplied with YM.'
+        'Intended to be used as a ratio.'
 
         arg = arg.split()
         try:
@@ -223,9 +229,16 @@ class ExptShell(cmd.Cmd):
             f"/set-source/source/{idx}/aed", ",fff", [angle, 0, dist*self.YM])
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
+        self.SOURCE_POS_DICT[idx][0] = angle
+        self.SOURCE_POS_DICT[idx][-1] = dist
 
     def do_play_wfs(self, arg):
         'Plays all unmuted sources: play'
+
+        print("Playing...")
+        for k, v in self.SOURCE_POS_DICT.items():
+            print(f"\tSource{k}: Angle:{v[0]} | Dist:{v[-1]}")
+
         # Playback
         msg = oscbuildparse.OSCMessage(
             "/playback", ",i", [1])
@@ -298,6 +311,28 @@ class ExptShell(cmd.Cmd):
         'Playback commands from a file: playback expt.txt'
         with open(arg) as f:
             self.cmdqueue.extend(f.read().splitlines())
+
+    def do_random_two_source(self, arg):
+        'Run the random two source experiment: random_two_source runs lo hi sep dist'
+
+        arg = arg.split()
+        if len(arg) != 5:
+            print("Error: see usage (hint: help test_signal)")
+            return
+
+        try:
+            runs = int(arg[0])
+            lo = float(arg[1])
+            hi = float(arg[2])
+            sep = float(arg[3])
+            dist = float(arg[4])
+        except:
+            print("Parse Error: Enter valid values")
+            return
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        p.randomized_two_source(runs, lo, hi, sep, dist)
+        self.do_playback("randomized_two_source.txt")
 
 
 if __name__ == '__main__':
