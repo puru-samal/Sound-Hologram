@@ -45,7 +45,7 @@ class LogSineSweep(TestSignal):
         n = np.arange(0, dur - 2 * zero_pad, inv_fs)
         out = amp * signal.chirp(n, f0, n[-1],
                                  f1, method="logarithmic", phi=-90)
-        out = np.pad(out, pad_width=padSamples, mode="constant")
+        out = np.pad(out, pad_width=padSamples//2, mode="constant")
 
         # shape: (dur * repititions * sample_rate,)
         self.signal = np.array([])
@@ -90,7 +90,7 @@ class WhiteNoise(TestSignal):
         n = np.arange(0, dur - 2 * zero_pad, inv_fs)
         out = rng.normal(scale=np.sqrt(noise_power), size=n.shape)
         out *= amp / np.max(np.abs(out))
-        out = np.pad(out, pad_width=(padSamples, padSamples) , mode="constant")
+        out = np.pad(out, pad_width=padSamples//2, mode="constant")
 
         # shape: (dur * repititions * sample_rate,)
         self.signal = np.array([])
@@ -127,11 +127,11 @@ class WhiteNoise(TestSignal):
 #test.generate(dur=1.0, amp=0.25, zero_pad=0.4, repititions=1)
 
 # Plot Signal
-#test.plot()
+# test.plot()
 
 # Write to file
 #filename = "noise.wav"
-#test.write(filename)
+# test.write(filename)
 
 # Play file using appropriate sys command
 #os.system("afplay " + filename)
