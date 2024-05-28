@@ -172,11 +172,10 @@
 /speaker/62/xyz 1.7609999999999983 3.617 0.0
 /speaker/63/xyz 1.8196999999999983 3.617 0.0
 /speaker/64/xyz 1.8783999999999983 3.617 0.0
-/source/number 2
+/source/number 1
 /source/*/visible 1
 /source/*/editable 1
 /source/*/coordinates/visible 1
 /source/*/label/visible 1
 /source/*/mute 1
-/source/1/aed -90.0 0 1.8085
-/source/2/aed 90.0 0 1.8085
+/source/1/aed 0 0 1.8085

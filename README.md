@@ -36,6 +36,11 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
   - Script to generate text files with sequence of commands to run experiments. 
                        
 
+# OSC Addresses
+
+* `/init-spat/preset/load` | fmt:`,s` | filename : 
+*  
+
 # Usage
 ## main.py
 ### Commands
@@ -125,7 +130,7 @@ unmute 0      # Unmute all sources, all sources are muted by default
 playback filename.txt
 ```
 
-### Example running the random_two_source experiment
+### Example running the random_two_source experiment with ipad input
 ```
 open_max       # Wait for Max to open
 init_conn 

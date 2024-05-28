@@ -20,6 +20,10 @@ class PresetGenerator:
         cmd = f"set_pos {index} {angle} {distance}\n"
         self.cmdqueue.put(cmd)
 
+    def user_input(self):
+        cmd = "user_input\n"
+        self.cmdqueue.put(cmd)
+
     def play_wfs(self):
         cmd = "play_wfs\n"
         self.cmdqueue.put(cmd)
@@ -40,19 +44,20 @@ class PresetGenerator:
 
     def randomized_two_source(self, runs, lo, hi, sep, dist):
 
-        if self.num_sources < 2:
-            print("Error: wfs initialized with < 2 sources. Reinit.")
-            return
-
         rand_angles = np.random.uniform(low=lo, high=hi, size=runs)
         for angle in rand_angles:
             angle1 = angle
-            angle2 = np.minimum(hi, np.maximum(angle1+sep, lo))
-            angle2 = angle1 - sep if abs(angle1-angle2) != sep else angle2
+            choice = np.random.choice([-1, 1])
+            angle2 = angle1 + choice * sep
+            angle2 = np.minimum(hi, np.maximum(angle2, lo))
+            angle2 = angle1 - choice * \
+                sep if abs(angle1-angle2) != sep else angle2
 
             self.set_pos(1, angle1, dist)
-            self.set_pos(2, angle2, dist)
             self.play_wfs()
+            self.set_pos(1, angle2, dist)
+            self.play_wfs()
+            self.user_input()
 
         self.write("randomized_two_source.txt")
         return
