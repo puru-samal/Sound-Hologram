@@ -57,9 +57,9 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
         - 1 : Generates a user-specified LogSineSweep signal 
         - 2 : Generates a user-specified WhiteNoise signal 
         - For the user-specified signal, user's will have to specify
-          - dur         (float) : duration in seconds
+          - dur         (float) : duration of the signal (in seconds)
           - amp         (float) : amplitude of the signal
-          - zero_pad    (float) : Ratio of dur that is reserved for zero-padding. Padding is applied both at the front and back.
+          - zero_pad    (float) : duration of padding applied to front/back (in seconds) 
           - repititions   (int) : number of repititions of the signal
   
 * `set_pos idx angle dist`

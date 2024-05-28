@@ -42,12 +42,12 @@ class LogSineSweep(TestSignal):
 
         inv_fs = 1 / self.sample_rate
         padSamples = int(zero_pad * self.sample_rate)
-        n = np.arange(0, dur - 2 * zero_pad, inv_fs)
+        n = np.arange(0, dur, inv_fs)
         out = amp * signal.chirp(n, f0, n[-1],
                                  f1, method="logarithmic", phi=-90)
-        out = np.pad(out, pad_width=padSamples//2, mode="constant")
+        out = np.pad(out, pad_width=padSamples, mode="constant")
 
-        # shape: (dur * repititions * sample_rate,)
+        # shape: ((dur + 2 * zero_pad) * repititions * sample_rate,)
         self.signal = np.array([])
         for _ in range(repititions):
             self.signal = np.append(self.signal, out)
@@ -87,12 +87,12 @@ class WhiteNoise(TestSignal):
         inv_fs = 1 / self.sample_rate
         padSamples = int(zero_pad * self.sample_rate)
         noise_power = 0.001 * self.sample_rate / 2
-        n = np.arange(0, dur - 2 * zero_pad, inv_fs)
+        n = np.arange(0, dur, inv_fs)
         out = rng.normal(scale=np.sqrt(noise_power), size=n.shape)
         out *= amp / np.max(np.abs(out))
-        out = np.pad(out, pad_width=padSamples//2, mode="constant")
+        out = np.pad(out, pad_width=padSamples, mode="constant")
 
-        # shape: (dur * repititions * sample_rate,)
+        # shape: ((dur + 2 * zero_pad) * repititions * sample_rate,)
         self.signal = np.array([])
         for _ in range(repititions):
             self.signal = np.append(self.signal, out)
@@ -120,18 +120,18 @@ class WhiteNoise(TestSignal):
 
 # ###### USUAGE ######
 # Instantiate Object
-#test = LogSineSweep(sample_rate=44100)
-#test = WhiteNoise(sample_rate=44100)
+# test = LogSineSweep(sample_rate=44100)
+# test = WhiteNoise(sample_rate=44100)
 
 # Generate Signal
-#test.generate(dur=1.0, amp=0.25, zero_pad=0.4, repititions=1)
+# test.generate(dur=0.2, amp=0.25, zero_pad=0.1, repititions=1)
 
 # Plot Signal
 # test.plot()
 
 # Write to file
-#filename = "noise.wav"
+# filename = "noise.wav"
 # test.write(filename)
 
 # Play file using appropriate sys command
-#os.system("afplay " + filename)
+# os.system("afplay " + filename)
