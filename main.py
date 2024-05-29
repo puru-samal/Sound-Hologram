@@ -254,7 +254,7 @@ class ExptShell(cmd.Cmd):
             f"/set-source/source/{idx}/aed", ",fff", [angle, 0, dist*self.YM])
         osc_send(msg, self.CLIENT)
         self.block_until_recieved("max")
-        self.pos_queue.append(f'{dist}-{angle}')
+        self.pos_queue.append(f'{dist}/{angle}')
 
     def do_play_wfs(self, arg):
         'Plays all unmuted sources: play'
@@ -382,9 +382,9 @@ class ExptShell(cmd.Cmd):
             recorded_dir = self.input_queue[i]
             initial_pos = self.pos_queue[2 * i]
             final_pos = self.pos_queue[2 * i + 1]
-            distance = np.round(float(initial_pos.split('-')[0]), 2)
-            init_angle = np.round(float(initial_pos.split('-')[-1]), 2)
-            final_angle = np.round(float(final_pos.split('-')[-1]), 2)
+            distance = np.round(float(initial_pos.split('/')[0]), 2)
+            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
             actual_dir = "right" if (
                 final_angle - init_angle) >= 0 else "left"
 
