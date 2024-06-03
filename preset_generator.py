@@ -20,12 +20,16 @@ class PresetGenerator:
         cmd = f"set_pos {index} {angle} {distance}\n"
         self.cmdqueue.put(cmd)
 
-    def user_input(self):
-        cmd = "user_input\n"
+    def ipad_user_input(self):
+        cmd = "ipad_user_input\n"
         self.cmdqueue.put(cmd)
 
-    def play_wfs(self):
-        cmd = "play_wfs\n"
+    def key_user_input(self):
+        cmd = "key_user_input\n"
+        self.cmdqueue.put(cmd)
+
+    def play(self):
+        cmd = "play\n"
         self.cmdqueue.put(cmd)
 
     def unmute(self, index):
@@ -44,6 +48,9 @@ class PresetGenerator:
 
     def randomized_two_source(self, runs, lo, hi, sep, dist):
 
+        input_fn = self.key_user_input
+        #input_fn = self.ipad_user_input
+
         rand_angles = np.random.uniform(low=lo, high=hi, size=runs)
         for angle in rand_angles:
             angle1 = angle
@@ -54,10 +61,10 @@ class PresetGenerator:
                 sep if abs(angle1-angle2) != sep else angle2
 
             self.set_pos(1, angle1, dist)
-            self.play_wfs()
+            self.play()
             self.set_pos(1, angle2, dist)
-            self.play_wfs()
-            self.user_input()
+            self.play()
+            input_fn()
 
         self.write("randomized_two_source.txt")
         return

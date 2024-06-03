@@ -22,6 +22,7 @@ import subprocess
 import preset_generator
 from pathlib import Path
 import pandas as pd
+import queue
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -36,16 +37,16 @@ class ExptShell(cmd.Cmd):
     intro = 'Experiment shell for Sound Hologram. Type help or ? to list commands.'
     prompt = '> '
 
-    IP = "127.0.0.1"   # Local Server
+    IP = "127.0.0.1"    # Local Server
     CLIENT_PORT = 1338  # Sending Port
     SERVER_PORT = 1339  # Listening Port
     CLIENT = "PyToMax"
     SERVER = "MaxToPy"
 
     WIFI_CLIENT_IP = "10.0.0.65"  # Ipad's IP
-    WIFI_CLIENT_PORT = 1340
     WIFI_SERVER_IP = "10.0.0.16"  # Computers IP
-    WIFI_SERVER_PORT = 1341
+    WIFI_CLIENT_PORT = 1340       # Sending Port
+    WIFI_SERVER_PORT = 1341       # Listening Port
     WIFI_CLIENT = "PyToIpad"
     WIFI_SERVER = "IpadToPy"
 
@@ -55,67 +56,51 @@ class ExptShell(cmd.Cmd):
     XPOS = np.arange(SP * -(NUM_SPEAKERS/2 - 1.0),
                      (NUM_SPEAKERS/2 + 1.0) * SP, SP)
     NUM_SOURCES = 1
-    SAMPLE_RATE = 48000  # Make sure Max is set to the same
-    TEST_SIG_FILENAME = "test_signal.wav"
+    SAMPLE_RATE = 44100  # Make sure Max is set to the same
 
     # State
-    MAX_SUCCESS = False
-    IPAD_SUCCESS = False
     IPAD_STATE = 'none'
+    ACCEPT_IPAD_INPUT = False
+    RECORD_FILE = None
 
     max_size = 500
     pos_queue = []
     input_queue = []
+    msg_queue = queue.Queue()
 
-    def max_conn(self, *args):
+    ############################
+    #### OSC EVENT HANDLERS ####
+    ############################
+
+    def max_conn(self, addr, x):
         if logger and logger.isEnabledFor(logging.INFO):
-
             logger.info("##### %d handler function called with: %r",
-                        1, args)
-            self.MAX_SUCCESS = True
+                        1, [addr, x])
 
-        else:
-            self.MAX_SUCCESS = True
+        self.msg_queue.put(addr)
 
     def ipad_conn(self, addr, x):
-        st = addr.split("/")[-1]
-        if addr != 'centre':
-            assert(int(x) == 1)
-            self.IPAD_STATE = st
-
         if logger and logger.isEnabledFor(logging.INFO):
 
             logger.info("##### %d handler function called with: %r",
                         1, x)
-            self.IPAD_SUCCESS = True
 
-        else:
-            self.IPAD_SUCCESS = True
+        if self.ACCEPT_IPAD_INPUT:
+            self.msg_queue.put(addr)
 
-    # HELPERS
+    ############################
+    ####      HELPERS       ####
+    ############################
 
     def close(self):
         osc_terminate()
-        p = subprocess.run(['pkill', '-x', 'Max'])
+        # p = subprocess.run(['pkill', '-x', 'Max'])
 
-    def block_until_recieved(self, dest):
-        print("...", sep="")
-        if dest == "max":
-            while not self.MAX_SUCCESS:
-                continue
-            self.MAX_SUCCESS = False
-            return
-
-        elif dest == "ipad":
-            while not self.IPAD_SUCCESS:
-                continue
-            self.IPAD_SUCCESS = False
-            return
-        else:
-            print("Invalid Destination!")
+    def block_until_recieved(self):
+        item = self.msg_queue.get()
+        return item
 
     def check_conn(self):
-
         # Install message methods
         osc_method("/max/conn", self.max_conn, argscheme=osm.OSCARG_ADDRESS +
                    osm.OSCARG_DATAUNPACK)
@@ -126,7 +111,9 @@ class ExptShell(cmd.Cmd):
         msg = oscbuildparse.OSCMessage("/max/conn", ",s", ["Sent"])
         osc_send(msg, self.CLIENT)
 
-    # SHELL CMDs
+    ############################
+    ####    SHELL CMDs      ####
+    ############################
 
     def do_quit(self, arg):
         'Exit the shell:  quit'
@@ -140,14 +127,11 @@ class ExptShell(cmd.Cmd):
 
     def do_init_conn(self, arg):
         'Establish client-server connection with Max/MSP: init'
-
         try:
-
             try:
                 osc_terminate()
             except:
                 pass
-
             osc_startup()
             # Initialize Client
             osc_udp_client(self.IP, self.CLIENT_PORT, self.CLIENT)
@@ -162,9 +146,8 @@ class ExptShell(cmd.Cmd):
                            self.WIFI_SERVER)
 
             self.check_conn()
-            self.block_until_recieved("max")
+            self.block_until_recieved()
             print("SUCCESS: Connection established.")
-
         except Exception as e:
             print("Error initializing: ")
             print(str(e))
@@ -172,7 +155,6 @@ class ExptShell(cmd.Cmd):
 
     def do_init_spat(self, arg):
         'Initialize spat5.wfs~: init_spat'
-
         # Setup Speakers
         Speakers = config.Speakers(self.NUM_SPEAKERS)
         ### Set Speaker Positions ####
@@ -186,14 +168,11 @@ class ExptShell(cmd.Cmd):
         angles = np.array([0]) if self.NUM_SOURCES < 2 else np.linspace(-90, 90,
                                                                         self.NUM_SOURCES,
                                                                         endpoint=True)
-
         for i in range(self.NUM_SOURCES):
             sources.set_source_pos(i+1, [angles[i], 0, self.YM/2])
-
-        # TODO: Handle error if config_init doesnot exist
+            self.pos_queue.append(f'{self.YM/2}/{angles[i]}')
 
         filename = "config.txt"
-
         # Write To Preset File
         with open("config-init.txt", "r") as init, open("config.txt", "w") as f:
             f.truncate(0)
@@ -207,26 +186,23 @@ class ExptShell(cmd.Cmd):
         msg = oscbuildparse.OSCMessage(
             "/init-spat/preset/load", ",s", [filename])
         osc_send(msg, self.CLIENT)
-        self.block_until_recieved("max")
+        self.block_until_recieved()
         print("SUCCESS: spat5.wfs~ initialized.")
         return
 
     def do_test_signal(self, arg):
         'Generate Test Signal: test_signal filepath'
-
         arg = arg.split()
-
         if len(arg) != 1:
             print("Error: see usage (hint: help test_signal)")
             return
 
         test_file = Path(arg[0])
-
         if test_file.is_file():
             msg = oscbuildparse.OSCMessage(
-                "/playback-file/open", ",s", [self.TEST_SIG_FILENAME])
+                "/playback-file/open", ",s", [arg[0]])
             osc_send(msg, self.CLIENT)
-            self.block_until_recieved("max")
+            self.block_until_recieved()
             print("SUCCESS: test signal set.")
             return
         else:
@@ -237,7 +213,6 @@ class ExptShell(cmd.Cmd):
         'Set Source Position: set_pos index angle distance'
         'Keep in mind, distance is multiplied with YM.'
         'Intended to be used as a ratio.'
-
         arg = arg.split()
         try:
             idx = int(arg[0])
@@ -253,25 +228,75 @@ class ExptShell(cmd.Cmd):
         msg = oscbuildparse.OSCMessage(
             f"/set-source/source/{idx}/aed", ",fff", [angle, 0, dist*self.YM])
         osc_send(msg, self.CLIENT)
-        self.block_until_recieved("max")
+        self.block_until_recieved()
         self.pos_queue.append(f'{dist}/{angle}')
 
-    def do_play_wfs(self, arg):
+    def do_play(self, arg):
         'Plays all unmuted sources: play'
-
         print("Playing...")
-        attr = self.pos_queue[-1].split('-')
+        attr = self.pos_queue[-1].split('/')
         print(f"\tSource: Dist:{attr[0]} | Angle:{attr[-1]}")
-
         # Playback
         msg = oscbuildparse.OSCMessage(
             "/play", ",i", [1])
         osc_send(msg, self.CLIENT)
-        self.block_until_recieved("max")
+        self.block_until_recieved()
+
+    def do_set_record_file(self, arg):
+        'Set filepath to record: set_record_file filepath'
+        arg = arg.split()
+        if len(arg) != 1:
+            print("Error: see usage (hint: help test_signal)")
+            return
+
+        filename = os.path.join(os.getcwd(), arg[0])
+
+        # Remove the file if it exists
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
+
+        msg = oscbuildparse.OSCMessage(
+            "/record-file/open", ",s", [filename])
+        osc_send(msg, self.CLIENT)
+        self.block_until_recieved()
+        print("SUCCESS: Record File set.")
+        self.RECORD_FILE = arg[0]
+        return
+
+    def do_play_rec(self, arg):
+        'Play/Record: play_rec filename duration(ms)'
+        print("Play/Recording...")
+
+        arg = arg.split()
+        if len(arg) != 2:
+            print("Error: see usage (hint: help play_rec)")
+            return
+
+        try:
+            filename = arg[0]
+            rec_dur = int(arg[1])
+        except:
+            print("Parse Error: Invalid Arguments")
+            return
+
+        self.do_set_record_file(filename)
+
+        print("Play/Recording...")
+        attr = self.pos_queue[-1].split('/')
+        print(f"\tSource     : Dist:{attr[0]} | Angle:{attr[-1]}")
+        print(f"\tRecord File: {self.RECORD_FILE}")
+
+        # Playback
+        msg = oscbuildparse.OSCMessage(
+            "/play-rec/record", ",i", [rec_dur])
+        osc_send(msg, self.CLIENT)
+        self.block_until_recieved()
+        self.block_until_recieved()
 
     def do_mute(self, arg):
         'Mute a source: mute idx[0:mutes all]'
-
         arg = arg.split()
         if len(arg) != 1:
             print("Error: see usage (hint: help test_signal)")
@@ -287,22 +312,22 @@ class ExptShell(cmd.Cmd):
             print(
                 f"Error: source idx out of range. Must be in range [1..{self.NUM_SOURCES}]")
 
-        mute = 1
-
         if idx == 0:
             msg = oscbuildparse.OSCMessage(
-                "/set-source/source/*/mute", ",i", [mute])
+                "/set-source/source/*/mute", ",i", [1])
             osc_send(msg, self.CLIENT)
         else:
             msg = oscbuildparse.OSCMessage(
-                f"/set-source/source/{idx}/mute", ",i", [mute])
+                f"/set-source/source/{idx}/mute", ",i", [1])
             osc_send(msg, self.CLIENT)
-
-        self.block_until_recieved("max")
+        self.block_until_recieved()
+        if idx == 0:
+            print("SUCCESS: All sources muted.")
+        else:
+            print(f"SUCCESS: {idx} source muted.")
 
     def do_unmute(self, arg):
         'Unmute a source: unmute idx[0:unmutes all]'
-
         arg = arg.split()
         if len(arg) != 1:
             print("Error: see usage (hint: help test_signal)")
@@ -318,40 +343,59 @@ class ExptShell(cmd.Cmd):
             print(
                 f"Error: source idx out of range. Must be in range [1..{self.NUM_SOURCES}]")
 
-        mute = 0
-
         if idx == 0:
             msg = oscbuildparse.OSCMessage(
-                "/set-source/source/*/mute", ",i", [mute])
+                "/set-source/source/*/mute", ",i", [0])
             osc_send(msg, self.CLIENT)
         else:
             msg = oscbuildparse.OSCMessage(
-                f"/set-source/source/{idx}/mute", ",i", [mute])
+                f"/set-source/source/{idx}/mute", ",i", [0])
             osc_send(msg, self.CLIENT)
-
-        self.block_until_recieved("max")
+        self.block_until_recieved()
+        if idx == 0:
+            print("SUCCESS: All sources unmuted.")
+        else:
+            print(f"SUCCESS: {idx} source unmuted.")
 
     def do_playback(self, arg):
         'Playback commands from a file: playback expt.txt'
         with open(arg) as f:
             self.cmdqueue.extend(f.read().splitlines())
 
-    def do_user_input(self, arg):
+    def do_ipad_user_input(self, arg):
         if len(self.input_queue) > self.max_size // 2:
             self.input_queue.clear()
+
+        self.ACCEPT_IPAD_INPUT = True
         msg = oscbuildparse.OSCMessage(
             "/ipad/centre/", ",f", [1.0])
         osc_send(msg, self.WIFI_CLIENT)
-        self.block_until_recieved("ipad")
-        msg1 = oscbuildparse.OSCMessage(
-            f"/ipad/{self.IPAD_STATE}/", ",f", [0.0])
-        msg2 = oscbuildparse.OSCMessage(
+
+        ipad_state = self.block_until_recieved().split('/')[-1]
+        self.input_queue.append(ipad_state)
+
+        msg = oscbuildparse.OSCMessage(
             "/ipad/centre/", ",f", [0.0])
-        bun = oscbuildparse.OSCBundle(oscbuildparse.OSC_IMMEDIATELY,
-                                      [msg1, msg2])
-        osc_send(bun, self.WIFI_CLIENT)
-        self.input_queue.append(self.IPAD_STATE)
+        osc_send(msg, self.WIFI_CLIENT)
+        self.ACCEPT_IPAD_INPUT = False
         return
+
+    def do_key_user_input(self, arg):
+        if len(self.input_queue) > self.max_size // 2:
+            self.input_queue.clear()
+
+        key_state = input("Enter (, | .): ")
+        SUCCESS = False
+
+        while not SUCCESS:
+            if key_state == ',':
+                self.input_queue.append('left')
+                SUCCESS = True
+            elif key_state == '.':
+                self.input_queue.append('right')
+                SUCCESS = True
+            else:
+                continue
 
     def do_write(self, arg):
         'Write result of experiment to file: playback filename'

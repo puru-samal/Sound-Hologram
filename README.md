@@ -37,9 +37,12 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
                        
 
 # OSC Addresses
-
-* `/init-spat/preset/load` | fmt:`,s` | filename : 
-*  
+* `/playback-file`         | fmt: `,s` | filename :
+* `/play`                  | fmt: `,i` | state :
+* `/play-rec`              | fmt: `,i` | state :
+* `/set-source/*`          | fmt:      |
+* `/init-spat/preset/load` | fmt:`,s`  | filename : 
+* `/max/conn`              | fmt:        
 
 # Usage
 ## main.py
@@ -74,7 +77,7 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
       - angle (float) : Angle in degrees [-90...90]
       - dist  (float) : Ratio of the source. Is multiplied by YM
       
-* `play_wfs`
+* `play`
   - Plays the test_signal in the current configuration.
   
 * `mute idx`
