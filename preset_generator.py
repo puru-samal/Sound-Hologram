@@ -32,6 +32,10 @@ class PresetGenerator:
         cmd = "play\n"
         self.cmdqueue.put(cmd)
 
+    def play_rec(self, filename, dur):
+        cmd = f"play_rec {filename} {dur}\n"
+        self.cmdqueue.put(cmd)
+
     def unmute(self, index):
         cmd = f"unmute {index}\n"
         self.cmdqueue.put(cmd)
@@ -40,16 +44,22 @@ class PresetGenerator:
         cmd = f"unmute {index}\n"
         self.cmdqueue.put(cmd)
 
+    def write_random_two_source(self):
+        cmd = f"write_random_two_source\n"
+        self.cmdqueue.put(cmd)
+
     def write(self, filename):
         with open(filename, "w+") as f:
             while not self.cmdqueue.empty():
                 cmd = self.cmdqueue.get()
                 f.write(cmd)
 
-    def randomized_two_source(self, runs, lo, hi, sep, dist):
+    def randomized_two_source(self, runs, lo, hi, sep, dist, input_type='keyboard'):
 
-        input_fn = self.key_user_input
-        #input_fn = self.ipad_user_input
+        if input_type == 'keyboard':
+            input_fn = self.key_user_input
+        elif input_type == 'ipad':
+            input_fn = self.ipad_user_input
 
         rand_angles = np.random.uniform(low=lo, high=hi, size=runs)
         for angle in rand_angles:
@@ -66,7 +76,23 @@ class PresetGenerator:
             self.play()
             input_fn()
 
+        self.write_random_two_source()
         self.write("randomized_two_source.txt")
+        return
+
+    def doa_expt(self, lo_angle, hi_angle, lo_dist, hi_dist, angle_interval, distance_interval, rec_dur, rec_dir):
+
+        angles = np.linspace(lo_angle, hi_angle, int(
+            (hi_angle-lo_angle)/angle_interval), endpoint=True)
+        distances = np.linspace(lo_dist, hi_dist, int(
+            (hi_dist-lo_dist)/distance_interval), endpoint=True)
+
+        for dist in distances:
+            for angle in angles:
+                self.set_pos(1, angle, dist)
+                self.play_rec(f'{rec_dir}/doa_{angle}_{dist}.wav', rec_dur)
+
+        self.write("doa_expt.txt")
         return
 
 

@@ -37,12 +37,14 @@ class ExptShell(cmd.Cmd):
     intro = 'Experiment shell for Sound Hologram. Type help or ? to list commands.'
     prompt = '> '
 
+    # Max Comms
     IP = "127.0.0.1"    # Local Server
     CLIENT_PORT = 1338  # Sending Port
     SERVER_PORT = 1339  # Listening Port
     CLIENT = "PyToMax"
     SERVER = "MaxToPy"
 
+    # iPad Comms
     WIFI_CLIENT_IP = "10.0.0.65"  # Ipad's IP
     WIFI_SERVER_IP = "10.0.0.16"  # Computers IP
     WIFI_CLIENT_PORT = 1340       # Sending Port
@@ -50,23 +52,43 @@ class ExptShell(cmd.Cmd):
     WIFI_CLIENT = "PyToIpad"
     WIFI_SERVER = "IpadToPy"
 
+    # Environment Setup
     NUM_SPEAKERS = 64
-    YM = 3.617   # Horizontal Distance of 32-SPeaker from origin (Make Input)
+    YM = 3.617   # Horizontal Distance of Midpoint from origin (Make Input)
     SP = 0.0587  # SPacing between SPeakers (Make Input)
     XPOS = np.arange(SP * -(NUM_SPEAKERS/2 - 1.0),
                      (NUM_SPEAKERS/2 + 1.0) * SP, SP)
     NUM_SOURCES = 1
     SAMPLE_RATE = 44100  # Make sure Max is set to the same
 
-    # State
+    # Shell State Variables
     IPAD_STATE = 'none'
     ACCEPT_IPAD_INPUT = False
-    RECORD_FILE = None
-
     max_size = 500
     pos_queue = []
     input_queue = []
     msg_queue = queue.Queue()
+
+    # Default Test Signals
+    test = T.WhiteNoise(sample_rate=SAMPLE_RATE)
+    test.generate(dur=20/1000, amp=0.25, zero_pad=0.001, repititions=1)
+    filename = "wn_20.wav"
+    test.write(filename)
+    test.generate(dur=50/1000, amp=0.25, zero_pad=0.001, repititions=1)
+    filename = "wn_50.wav"
+    test.write(filename)
+    test.generate(dur=100/1000, amp=0.25, zero_pad=0.001, repititions=1)
+    filename = "wn_100.wav"
+    test.write(filename)
+    test.generate(dur=250/1000, amp=0.25, zero_pad=0.001, repititions=1)
+    filename = "wn_250.wav"
+    test.write(filename)
+
+    print(f'Generated 4 test signals at {SAMPLE_RATE}Hz: ')
+    print("\tWhite Noise  (20ms)  as  wn_20.wav")
+    print("\tWhite Noise  (50ms)  as  wn_50.wav")
+    print("\tWhite Noise (100ms)  as  wn_100.wav")
+    print("\tWhite Noise (250ms)  as  wn_250.wav")
 
     ############################
     #### OSC EVENT HANDLERS ####
@@ -94,7 +116,6 @@ class ExptShell(cmd.Cmd):
 
     def close(self):
         osc_terminate()
-        # p = subprocess.run(['pkill', '-x', 'Max'])
 
     def block_until_recieved(self):
         item = self.msg_queue.get()
@@ -112,6 +133,96 @@ class ExptShell(cmd.Cmd):
         osc_send(msg, self.CLIENT)
 
     ############################
+    ####    Dummy CMDs      ####
+    ############################
+
+    def do_ipad_user_input(self, arg):
+        if len(self.input_queue) > self.max_size // 2:
+            self.input_queue.clear()
+
+        self.ACCEPT_IPAD_INPUT = True
+        msg = oscbuildparse.OSCMessage(
+            "/ipad/centre/", ",f", [1.0])
+        osc_send(msg, self.WIFI_CLIENT)
+
+        ipad_state = self.block_until_recieved().split('/')[-1]
+        self.input_queue.append(ipad_state)
+
+        msg = oscbuildparse.OSCMessage(
+            "/ipad/centre/", ",f", [0.0])
+        osc_send(msg, self.WIFI_CLIENT)
+        self.ACCEPT_IPAD_INPUT = False
+        return
+
+    def do_key_user_input(self, arg):
+        if len(self.input_queue) > self.max_size // 2:
+            self.input_queue.clear()
+
+        key_state = input("Enter (, | .): ")
+        SUCCESS = False
+
+        while not SUCCESS:
+            if key_state == ',':
+                self.input_queue.append('left')
+                SUCCESS = True
+            elif key_state == '.':
+                self.input_queue.append('right')
+                SUCCESS = True
+            else:
+                print('Entered wrong key. Re-enter.')
+                continue
+
+    def do_write_random_two_source(self, arg):
+
+        assert(2 * len(self.input_queue) == len(self.pos_queue))
+
+        file_name = input('Enter .txt filename to write results to: ')
+
+        with open(file_name, 'w+'):
+            pass
+
+        results = {
+            "Radial Distance": [],
+            "Initial Angle": [],
+            "Final Angle": [],
+            "Direction": [],
+            "Recorded Direction": [],
+        }
+
+        for i in range(len(self.input_queue)):
+
+            recorded_dir = self.input_queue[i]
+            initial_pos = self.pos_queue[2 * i]
+            final_pos = self.pos_queue[2 * i + 1]
+            distance = np.round(float(initial_pos.split('/')[0]), 2)
+            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+            actual_dir = "right" if (
+                final_angle - init_angle) >= 0 else "left"
+
+            results['Radial Distance'].append(distance)
+            results['Initial Angle'].append(init_angle)
+            results['Final Angle'].append(final_angle)
+            results['Direction'].append(actual_dir)
+            results["Recorded Direction"].append(recorded_dir)
+
+        df = pd.DataFrame(data=results)
+        with open(file_name, 'a') as f:
+            f.write(df.to_string())
+            f.write('\n')
+
+        acc = np.mean([1 if a == b else 0 for a,
+                      b in zip(results["Recorded Direction"], results['Direction'])])
+
+        with open(file_name, 'a') as f:
+            f.write(f"Accuracy: {acc}\n")
+
+        print(f"SUCCESS: Saved results in {file_name}")
+
+        self.pos_queue = self.pos_queue[-1:]
+        self.input_queue.clear()
+
+    ############################
     ####    SHELL CMDs      ####
     ############################
 
@@ -120,10 +231,6 @@ class ExptShell(cmd.Cmd):
         print('Thank you!')
         self.close()
         return True
-
-    def do_open_max(self, arg):
-        'Open Max/MSP: open_max'
-        p = subprocess.run(['open', 'wfs.maxpat'])
 
     def do_init_conn(self, arg):
         'Establish client-server connection with Max/MSP: init'
@@ -148,6 +255,8 @@ class ExptShell(cmd.Cmd):
             self.check_conn()
             self.block_until_recieved()
             print("SUCCESS: Connection established.")
+            print(f"\tSending at port:{self.CLIENT_PORT}")
+            print(f"\tListening at port:{self.SERVER_PORT}")
         except Exception as e:
             print("Error initializing: ")
             print(str(e))
@@ -242,29 +351,6 @@ class ExptShell(cmd.Cmd):
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
 
-    def do_set_record_file(self, arg):
-        'Set filepath to record: set_record_file filepath'
-        arg = arg.split()
-        if len(arg) != 1:
-            print("Error: see usage (hint: help test_signal)")
-            return
-
-        filename = os.path.join(os.getcwd(), arg[0])
-
-        # Remove the file if it exists
-        try:
-            os.remove(filename)
-        except OSError:
-            pass
-
-        msg = oscbuildparse.OSCMessage(
-            "/record-file/open", ",s", [filename])
-        osc_send(msg, self.CLIENT)
-        self.block_until_recieved()
-        print("SUCCESS: Record File set.")
-        self.RECORD_FILE = arg[0]
-        return
-
     def do_play_rec(self, arg):
         'Play/Record: play_rec filename duration(ms)'
         print("Play/Recording...")
@@ -281,12 +367,25 @@ class ExptShell(cmd.Cmd):
             print("Parse Error: Invalid Arguments")
             return
 
-        self.do_set_record_file(filename)
+        filename = os.path.join(os.getcwd(), filename)
+
+        # Remove the file if it exists
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
+
+        msg = oscbuildparse.OSCMessage(
+            "/record-file/open", ",s", [filename])
+        osc_send(msg, self.CLIENT)
+        self.block_until_recieved()
+        print("SUCCESS: Record File set.")
+        RECORD_FILE = arg[0]
 
         print("Play/Recording...")
         attr = self.pos_queue[-1].split('/')
         print(f"\tSource     : Dist:{attr[0]} | Angle:{attr[-1]}")
-        print(f"\tRecord File: {self.RECORD_FILE}")
+        print(f"\tRecord File: {RECORD_FILE}")
 
         # Playback
         msg = oscbuildparse.OSCMessage(
@@ -362,97 +461,6 @@ class ExptShell(cmd.Cmd):
         with open(arg) as f:
             self.cmdqueue.extend(f.read().splitlines())
 
-    def do_ipad_user_input(self, arg):
-        if len(self.input_queue) > self.max_size // 2:
-            self.input_queue.clear()
-
-        self.ACCEPT_IPAD_INPUT = True
-        msg = oscbuildparse.OSCMessage(
-            "/ipad/centre/", ",f", [1.0])
-        osc_send(msg, self.WIFI_CLIENT)
-
-        ipad_state = self.block_until_recieved().split('/')[-1]
-        self.input_queue.append(ipad_state)
-
-        msg = oscbuildparse.OSCMessage(
-            "/ipad/centre/", ",f", [0.0])
-        osc_send(msg, self.WIFI_CLIENT)
-        self.ACCEPT_IPAD_INPUT = False
-        return
-
-    def do_key_user_input(self, arg):
-        if len(self.input_queue) > self.max_size // 2:
-            self.input_queue.clear()
-
-        key_state = input("Enter (, | .): ")
-        SUCCESS = False
-
-        while not SUCCESS:
-            if key_state == ',':
-                self.input_queue.append('left')
-                SUCCESS = True
-            elif key_state == '.':
-                self.input_queue.append('right')
-                SUCCESS = True
-            else:
-                continue
-
-    def do_write(self, arg):
-        'Write result of experiment to file: playback filename'
-
-        arg = arg.split()
-
-        if len(arg) != 1:
-            print("Error: see usage (hint: help write)")
-            return
-
-        assert(2 * len(self.input_queue) == len(self.pos_queue))
-
-        file_name = arg[0]
-
-        with open(file_name, 'w+'):
-            pass
-
-        results = {
-            "Radial Distance": [],
-            "Initial Angle": [],
-            "Final Angle": [],
-            "Direction": [],
-            "Recorded Direction": [],
-        }
-
-        for i in range(len(self.input_queue)):
-
-            recorded_dir = self.input_queue[i]
-            initial_pos = self.pos_queue[2 * i]
-            final_pos = self.pos_queue[2 * i + 1]
-            distance = np.round(float(initial_pos.split('/')[0]), 2)
-            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
-            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
-            actual_dir = "right" if (
-                final_angle - init_angle) >= 0 else "left"
-
-            results['Radial Distance'].append(distance)
-            results['Initial Angle'].append(init_angle)
-            results['Final Angle'].append(final_angle)
-            results['Direction'].append(actual_dir)
-            results["Recorded Direction"].append(recorded_dir)
-
-        df = pd.DataFrame(data=results)
-        with open(file_name, 'a') as f:
-            f.write(df.to_string())
-            f.write('\n')
-
-        acc = np.mean([1 if a == b else 0 for a,
-                      b in zip(results["Recorded Direction"], results['Direction'])])
-
-        with open(file_name, 'a') as f:
-            f.write(f"Accuracy: {acc}\n")
-
-        self.pos_queue.clear()
-        self.input_queue.clear()
-        return
-
     def do_random_two_source(self, arg):
         'Run the random two source experiment: random_two_source runs lo hi sep dist'
         'Make sure test_signal is set.'
@@ -478,6 +486,35 @@ class ExptShell(cmd.Cmd):
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
         p.randomized_two_source(runs, lo, hi, sep, dist)
         self.do_playback("randomized_two_source.txt")
+        return
+
+    def do_doa_expt(self, arg):
+        'Run the doa experiment: doa_expt lo_angle hi_angle lo_dist hi_dist angle_interval distance_interval rec_dur rec_dir'
+        'Make sure test_signal is set.'
+        'Make sure sources are unmuted'
+
+        arg = arg.split()
+        if len(arg) != 8:
+            print("Error: see usage (hint: help doa)")
+            return
+
+        try:
+            lo_angle = float(arg[0])
+            hi_angle = float(arg[1])
+            lo_dist = float(arg[2])
+            hi_dist = float(arg[3])
+            angle_interval = float(arg[4])
+            distance_interval = float(arg[5])
+            rec_dur = int(arg[6])
+            rec_dir = arg[7]
+        except:
+            print("Parse Error: Enter valid values")
+            return
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        p.doa_expt(lo_angle, hi_angle, lo_dist, hi_dist,
+                   angle_interval, distance_interval, rec_dur, rec_dir)
+        self.do_playback("doa_expt.txt")
         return
 
 

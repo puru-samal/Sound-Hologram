@@ -7,6 +7,7 @@ Created on Tue Feb 20 22:48:55 2024
 """
 
 import numpy as np
+import os
 
 
 class Speakers:

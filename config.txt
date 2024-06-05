@@ -19,7 +19,7 @@
 /listener/orientation 0.0 0.0 0.0 1.0
 /listener/orientation/visible 0
 /listener/lookat/xyz 0.0 1.0 0.0
-/listener/proportion 100.0
+/listener/proportion 50.0
 /listener/color 0.0 0.0 0.0 0.0
 /listener/headphones/visible 0
 /multi/number 0
@@ -34,14 +34,20 @@
 /backgroundimage/angle 0.0
 /backgroundimage/offset/xy 0.0 0.0
 /backgroundimage/quality "medium"
-/display/zoom 30
-/display/offset/xyz 0.0 0.0 0.0
-/display/zoom/lock 0
+
+# /display
+/display/offset/xyz 0 -250 0
+/display/zoom 55
+/display/zoom/lock 1
+
+# /axis
 /axis/visible 1
 /axis/label/visible 1
 /axis/origin/visible 1
 /axis/color 1.0 1.0 1.0 1.0
 /axis/thickness 2.0
+
+# /grid
 /grid/visible 1
 /grid/mode "cartesian"
 /grid/spacing 0.1
@@ -54,6 +60,11 @@
 /grid/unitcircle/visible 1
 /grid/unitcircle/color 0.501961 0.501961 0.501961 0.239216
 /grid/unitcircle/radius 1.0
+/grid/mode "circular"
+/grid/spacing 0.452125
+/grid/angulardivisions/visible 1
+/grid/angulardivisions/number 30
+
 /legend/visible 1
 /legend/color 1.0 1.0 1.0 1.0
 /legend/unit "meters"
@@ -69,40 +80,13 @@
 /phone/number 0
 /area/number 0
 /path/number 0
-/speakerhull/visible 0
+/speakerhull/visible 1
 /speakerhull/color 0.0 0.0 0.0 1.0
 /speakerhull/fill 0
 /speakerhull/fill/color 0.0 0.0 0.0 0.298039
 /settings/visible 0
 /settings/editable 1
 /layout automatic
-/usurp 0
-/window/title "Spat Viewer"
-/window/visible 1
-/window/moveable 1
-/window/resizable 1
-/window/enable 1
-/window/bounds 1799 306 800 400
-/window/background/color 0.827451 0.827451 0.827451 1.0
-/window/opaque 1
-/window/titlebar 1
-/window/fullscreen 0
-/window/minimise 0
-/window/scale 100.0
-/window/rendering/engine "CoreGraphics Renderer"
-/window/rendering/fps/visible 0
-/window/floating 0
-/window/hidesondeactivate 0
-/window/buttons/close 1
-/window/buttons/minimise 1
-/window/buttons/maximise 1
-/display/offset/x 0
-/display/offset/y -130
-/display/zoom 45
-/grid/mode "circular"
-/grid/spacing 0.452125
-/grid/angulardivisions/visible 1
-/grid/angulardivisions/number 30
 /speaker/number 64
 /speaker/*/visible 1
 /speaker/*/editable 0
