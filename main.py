@@ -23,6 +23,7 @@ import preset_generator
 from pathlib import Path
 import pandas as pd
 import queue
+import cross_corr
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -222,6 +223,35 @@ class ExptShell(cmd.Cmd):
         self.pos_queue = self.pos_queue[-1:]
         self.input_queue.clear()
 
+    def do_process_cross_corr(self, arg):
+        'Calculate cross-correlation: process_cross_corr directory'
+
+        arg = arg.split()
+        if len(arg) != 1:
+            print("Error: see usage (hint: help process_cross_corr")
+            return
+
+        results = {
+            'Speaker Pair': [],
+            'Correlation': [],
+        }
+
+        directory = arg[0]
+        for file in os.listdir(directory):
+
+            file_path = os.path.join(directory, file)
+
+            if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
+                results['Speaker Pair'].append(filename.split('.')[0])
+                results['Correlation'].append(cross_corr.cross_corr(file_path))
+
+        mean_corr = np.mean(results['Correlation'])
+        df = pd.DataFrame(data=results)
+        string = df.to_string()
+        string += '\n'
+        string += f'Mean Correlation: {mean_corr}\n'
+        print(string)
+
     ############################
     ####    SHELL CMDs      ####
     ############################
@@ -255,8 +285,8 @@ class ExptShell(cmd.Cmd):
             self.check_conn()
             self.block_until_recieved()
             print("SUCCESS: Connection established.")
-            print(f"\tSending at port:{self.CLIENT_PORT}")
-            print(f"\tListening at port:{self.SERVER_PORT}")
+            print(f"\tSending   at port: {self.CLIENT_PORT}")
+            print(f"\tListening at port: {self.SERVER_PORT}")
         except Exception as e:
             print("Error initializing: ")
             print(str(e))
@@ -339,6 +369,29 @@ class ExptShell(cmd.Cmd):
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
         self.pos_queue.append(f'{dist}/{angle}')
+
+    def do_set_speaker(self, arg):
+        'Set Active speaker: set_speaker speakeridx0 speakeridx1 ...'
+        'Speakers are 0-indexed'
+        'Make sure Max is in Speaker Out mode'
+
+        arg = arg.split()
+        gains = np.zeros(self.NUM_SPEAKERS)
+
+        try:
+
+            for speaker in arg:
+                sp = int(speaker)
+                gains[sp] = 1.0
+
+        except Exception as e:
+            print("Error initializing: ")
+            print(str(e))
+
+        fmt = ',' + ''.join('f' for i in range(64))
+        msg = oscbuildparse.OSCMessage(
+            f"/speaker-ch/gains", fmt, list(gains))
+        osc_send(msg, self.CLIENT)
 
     def do_play(self, arg):
         'Plays all unmuted sources: play'
@@ -516,6 +569,8 @@ class ExptShell(cmd.Cmd):
                    angle_interval, distance_interval, rec_dur, rec_dir)
         self.do_playback("doa_expt.txt")
         return
+
+    def do_
 
 
 if __name__ == '__main__':

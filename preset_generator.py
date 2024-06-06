@@ -44,8 +44,16 @@ class PresetGenerator:
         cmd = f"unmute {index}\n"
         self.cmdqueue.put(cmd)
 
+    def set_two_speaker(self, idx1, idx2):
+        cmd = f"set_speaker {idx1} {idx2}\n"
+        self.cmdqueue.put(cmd)
+
     def write_random_two_source(self):
         cmd = f"write_random_two_source\n"
+        self.cmdqueue.put(cmd)
+
+    def process_cross_corr(self, directory):
+        cmd = f"process_cross_corr {directory}\n"
         self.cmdqueue.put(cmd)
 
     def write(self, filename):
@@ -82,10 +90,13 @@ class PresetGenerator:
 
     def doa_expt(self, lo_angle, hi_angle, lo_dist, hi_dist, angle_interval, distance_interval, rec_dur, rec_dir):
 
-        angles = np.linspace(lo_angle, hi_angle, int(
-            (hi_angle-lo_angle)/angle_interval), endpoint=True)
-        distances = np.linspace(lo_dist, hi_dist, int(
-            (hi_dist-lo_dist)/distance_interval), endpoint=True)
+        angles = np.linspace(lo_angle, hi_angle,
+                             int((hi_angle-lo_angle)/angle_interval + 1),
+                             endpoint=True)
+
+        distances = np.linspace(lo_dist, hi_dist,
+                                int((hi_dist-lo_dist)/distance_interval + 1),
+                                endpoint=True)
 
         for dist in distances:
             for angle in angles:
@@ -93,6 +104,17 @@ class PresetGenerator:
                 self.play_rec(f'{rec_dir}/doa_{angle}_{dist}.wav', rec_dur)
 
         self.write("doa_expt.txt")
+        return
+
+    def calc_lag(self, num_speakers):
+
+        for sp in range(num_speakers//2):
+            self.set_two_speaker(sp, (num_speakers-1) - sp)
+            self.play_rec(
+                f'calc_lag/{sp}_{(num_speakers-1) - sp}.wav', 1000)
+
+        self.process_cross_corr('calc_lag')
+        self.write("calc_lag.txt")
         return
 
 
