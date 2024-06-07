@@ -9,21 +9,20 @@ Created on Mon May 20 11:03:44 2024
 import numpy as np
 import test_signal as T
 import cmd
-import sys
-import shutil
 import os
-import time
 import config
 from osc4py3.as_allthreads import *
 from osc4py3 import oscbuildparse
 from osc4py3 import oscmethod as osm
 import logging
-import subprocess
 import preset_generator
 from pathlib import Path
 import pandas as pd
 import queue
 import cross_corr
+import socket
+from scipy.io import wavfile
+import scipy.signal as sps
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -46,8 +45,8 @@ class ExptShell(cmd.Cmd):
     SERVER = "MaxToPy"
 
     # iPad Comms
-    WIFI_CLIENT_IP = "10.0.0.65"  # Ipad's IP
-    WIFI_SERVER_IP = "10.0.0.16"  # Computers IP
+    WIFI_CLIENT_IP = None  # Ipad's IP
+    WIFI_SERVER_IP = None  # Computers IP
     WIFI_CLIENT_PORT = 1340       # Sending Port
     WIFI_SERVER_PORT = 1341       # Listening Port
     WIFI_CLIENT = "PyToIpad"
@@ -55,12 +54,12 @@ class ExptShell(cmd.Cmd):
 
     # Environment Setup
     NUM_SPEAKERS = 64
-    YM = 3.617   # Horizontal Distance of Midpoint from origin (Make Input)
-    SP = 0.0587  # SPacing between SPeakers (Make Input)
+    YM = 3.53   # Horizontal Distance of Midpoint from origin (Make Input)
+    SP = 0.059  # SPacing between SPeakers (Make Input)
     XPOS = np.arange(SP * -(NUM_SPEAKERS/2 - 1.0),
                      (NUM_SPEAKERS/2 + 1.0) * SP, SP)
     NUM_SOURCES = 1
-    SAMPLE_RATE = 44100  # Make sure Max is set to the same
+    SAMPLE_RATE = 48000  # Make sure Max is set to the same
 
     # Shell State Variables
     IPAD_STATE = 'none'
@@ -122,7 +121,7 @@ class ExptShell(cmd.Cmd):
         item = self.msg_queue.get()
         return item
 
-    def check_conn(self):
+    def check_conn_max(self):
         # Install message methods
         osc_method("/max/conn", self.max_conn, argscheme=osm.OSCARG_ADDRESS +
                    osm.OSCARG_DATAUNPACK)
@@ -275,18 +274,37 @@ class ExptShell(cmd.Cmd):
             # Initialize Server
             osc_udp_server(self.IP, self.SERVER_PORT, self.SERVER)
 
-            # Initialize Client
-            osc_udp_client(self.WIFI_CLIENT_IP, self.WIFI_CLIENT_PORT,
-                           self.WIFI_CLIENT)
-            # Initialize Server
-            osc_udp_server(self.WIFI_SERVER_IP, self.WIFI_SERVER_PORT,
-                           self.WIFI_SERVER)
-
-            self.check_conn()
+            self.check_conn_max()
             self.block_until_recieved()
-            print("SUCCESS: Connection established.")
+            print(f"SUCCESS: Connection established @ {self.IP}.")
             print(f"\tSending   at port: {self.CLIENT_PORT}")
             print(f"\tListening at port: {self.SERVER_PORT}")
+
+            ipad_input = input("Use iPad input? [y/n]: ")
+
+            if ipad_input.lower() == 'y':
+                hostname = socket.gethostname()
+                self.WIFI_SERVER_IP = socket.gethostbyname(hostname)
+
+                # Initialize Server
+                osc_udp_server(self.WIFI_SERVER_IP, self.WIFI_SERVER_PORT,
+                               self.WIFI_SERVER)
+
+                self.WIFI_CLIENT_IP = input("Enter iPad's IP addr: ")
+                # Initialize Client
+                osc_udp_client(self.WIFI_CLIENT_IP, self.WIFI_CLIENT_PORT,
+                               self.WIFI_CLIENT)
+
+                print(
+                    f"SUCCESS: Connection established @ {self.WIFI_SERVER_IP}.")
+                print(f"\tSending   at port: {self.WIFI_CLIENT_PORT}")
+                print(f"\tListening at port: {self.WIFI_SERVER_PORT}")
+                print("Ensure iPad's TouchOSC is sending to: ")
+                print(f"\tIP   : {self.WIFI_SERVER_IP}")
+                print(f"\tPort : {self.WIFI_SERVER_PORT}")
+            else:
+                print("Using keyboard input.")
+
         except Exception as e:
             print("Error initializing: ")
             print(str(e))
@@ -337,9 +355,21 @@ class ExptShell(cmd.Cmd):
             return
 
         test_file = Path(arg[0])
+        file_name = arg[0]
         if test_file.is_file():
+            # Resample if not self.SAMPLE_RATE
+            curr_Fs, data = wavfile.read(file_name)
+            if int(curr_Fs) != int(self.SAMPLE_RATE):
+                num_samples = round(
+                    data.shape[0] * float(self.SAMPLE_RATE) / curr_Fs)
+                resampled_data = sps.resample(data, num_samples)
+                resampled_data = resampled_data.astype(np.float32)
+                resampled_data /= np.max(np.abs(resampled_data))
+                wavfile.write(file_name, self.SAMPLE_RATE, resampled_data)
+            else:
+                pass
             msg = oscbuildparse.OSCMessage(
-                "/playback-file/open", ",s", [arg[0]])
+                "/playback-file/open", ",s", [file_name])
             osc_send(msg, self.CLIENT)
             self.block_until_recieved()
             print("SUCCESS: test signal set.")
@@ -406,6 +436,7 @@ class ExptShell(cmd.Cmd):
 
     def do_play_rec(self, arg):
         'Play/Record: play_rec filename duration(ms)'
+        'Make sure Recording duration > Playback Duration'
         print("Play/Recording...")
 
         arg = arg.split()
@@ -444,7 +475,6 @@ class ExptShell(cmd.Cmd):
         msg = oscbuildparse.OSCMessage(
             "/play-rec/record", ",i", [rec_dur])
         osc_send(msg, self.CLIENT)
-        self.block_until_recieved()
         self.block_until_recieved()
 
     def do_mute(self, arg):
@@ -569,8 +599,6 @@ class ExptShell(cmd.Cmd):
                    angle_interval, distance_interval, rec_dur, rec_dir)
         self.do_playback("doa_expt.txt")
         return
-
-    def do_
 
 
 if __name__ == '__main__':
