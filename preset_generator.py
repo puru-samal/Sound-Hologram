@@ -49,21 +49,21 @@ class PresetGenerator:
         self.cmdqueue.put(cmd)
 
     def write_random_two_source(self):
-        cmd = f"write_random_two_source\n"
+        cmd = "write_random_two_source\n"
         self.cmdqueue.put(cmd)
 
     def process_cross_corr(self, directory):
         cmd = f"process_cross_corr {directory}\n"
         self.cmdqueue.put(cmd)
 
-    def write(self, filename):
-        with open(filename, "w+") as f:
-            while not self.cmdqueue.empty():
-                cmd = self.cmdqueue.get()
-                f.write(cmd)
+    def write_to_str(self):
+        string = ''
+        while not self.cmdqueue.empty():
+            cmd = self.cmdqueue.get()
+            string += cmd
+        return string
 
     def randomized_two_source(self, runs, lo, hi, sep, dist, input_type='keyboard'):
-
         if input_type == 'keyboard':
             input_fn = self.key_user_input
         elif input_type == 'ipad':
@@ -84,9 +84,7 @@ class PresetGenerator:
             self.play()
             input_fn()
 
-        self.write_random_two_source()
-        self.write("randomized_two_source.txt")
-        return
+        return self.write_to_str()
 
     def doa_expt(self, lo_angle, hi_angle, lo_dist, hi_dist, angle_interval, distance_interval, rec_dur, rec_dir):
 
@@ -103,19 +101,17 @@ class PresetGenerator:
                 self.set_pos(1, angle, dist)
                 self.play_rec(f'{rec_dir}/doa_{angle}_{dist}.wav', rec_dur)
 
-        self.write("doa_expt.txt")
-        return
+        return self.write_to_str()
 
-    def calc_lag(self, num_speakers):
+    def spaced_pair_lag(self, num_speakers):
 
         for sp in range(num_speakers//2):
             self.set_two_speaker(sp, (num_speakers-1) - sp)
             self.play_rec(
-                f'calc_lag/{sp}_{(num_speakers-1) - sp}.wav', 1000)
+                f'spaced_pair_lag/{sp}_{(num_speakers-1) - sp}.wav', 1000)
 
         self.process_cross_corr('calc_lag')
-        self.write("calc_lag.txt")
-        return
+        return self.write_to_str()
 
 
 # Usuage

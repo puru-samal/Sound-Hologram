@@ -27,9 +27,9 @@ import scipy.signal as sps
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
                     '%(levelname)s - %(message)s')
-logger = logging.getLogger("osc")
-logger.setLevel(logging.DEBUG)
-logger = None
+logger = None  # Comment and uncomment lines below to log OSC messages
+#logger = logging.getLogger("osc")
+# logger.setLevel(logging.DEBUG)
 
 
 class ExptShell(cmd.Cmd):
@@ -64,6 +64,7 @@ class ExptShell(cmd.Cmd):
     # Shell State Variables
     IPAD_STATE = 'none'
     ACCEPT_IPAD_INPUT = False
+    IPAD_AVAILABLE = False
     max_size = 500
     pos_queue = []
     input_queue = []
@@ -118,7 +119,7 @@ class ExptShell(cmd.Cmd):
         osc_terminate()
 
     def block_until_recieved(self):
-        item = self.msg_queue.get()
+        item = self.msg_queue.get(block=True, timeout=None)
         return item
 
     def check_conn_max(self):
@@ -146,12 +147,12 @@ class ExptShell(cmd.Cmd):
         osc_send(msg, self.WIFI_CLIENT)
 
         ipad_state = self.block_until_recieved().split('/')[-1]
+        self.ACCEPT_IPAD_INPUT = False
         self.input_queue.append(ipad_state)
 
         msg = oscbuildparse.OSCMessage(
             "/ipad/centre/", ",f", [0.0])
         osc_send(msg, self.WIFI_CLIENT)
-        self.ACCEPT_IPAD_INPUT = False
         return
 
     def do_key_user_input(self, arg):
@@ -171,85 +172,6 @@ class ExptShell(cmd.Cmd):
             else:
                 print('Entered wrong key. Re-enter.')
                 continue
-
-    def do_write_random_two_source(self, arg):
-
-        assert(2 * len(self.input_queue) == len(self.pos_queue))
-
-        file_name = input('Enter .txt filename to write results to: ')
-
-        with open(file_name, 'w+'):
-            pass
-
-        results = {
-            "Radial Distance": [],
-            "Initial Angle": [],
-            "Final Angle": [],
-            "Direction": [],
-            "Recorded Direction": [],
-        }
-
-        for i in range(len(self.input_queue)):
-
-            recorded_dir = self.input_queue[i]
-            initial_pos = self.pos_queue[2 * i]
-            final_pos = self.pos_queue[2 * i + 1]
-            distance = np.round(float(initial_pos.split('/')[0]), 2)
-            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
-            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
-            actual_dir = "right" if (
-                final_angle - init_angle) >= 0 else "left"
-
-            results['Radial Distance'].append(distance)
-            results['Initial Angle'].append(init_angle)
-            results['Final Angle'].append(final_angle)
-            results['Direction'].append(actual_dir)
-            results["Recorded Direction"].append(recorded_dir)
-
-        df = pd.DataFrame(data=results)
-        with open(file_name, 'a') as f:
-            f.write(df.to_string())
-            f.write('\n')
-
-        acc = np.mean([1 if a == b else 0 for a,
-                      b in zip(results["Recorded Direction"], results['Direction'])])
-
-        with open(file_name, 'a') as f:
-            f.write(f"Accuracy: {acc}\n")
-
-        print(f"SUCCESS: Saved results in {file_name}")
-
-        self.pos_queue = self.pos_queue[-1:]
-        self.input_queue.clear()
-
-    def do_process_cross_corr(self, arg):
-        'Calculate cross-correlation: process_cross_corr directory'
-
-        arg = arg.split()
-        if len(arg) != 1:
-            print("Error: see usage (hint: help process_cross_corr")
-            return
-
-        results = {
-            'Speaker Pair': [],
-            'Correlation': [],
-        }
-
-        directory = arg[0]
-        for file in os.listdir(directory):
-
-            file_path = os.path.join(directory, file)
-
-            if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
-                results['Speaker Pair'].append(filename.split('.')[0])
-                results['Correlation'].append(cross_corr.cross_corr(file_path))
-
-        mean_corr = np.mean(results['Correlation'])
-        df = pd.DataFrame(data=results)
-        string = df.to_string()
-        string += '\n'
-        string += f'Mean Correlation: {mean_corr}\n'
-        print(string)
 
     ############################
     ####    SHELL CMDs      ####
@@ -295,15 +217,32 @@ class ExptShell(cmd.Cmd):
                 osc_udp_client(self.WIFI_CLIENT_IP, self.WIFI_CLIENT_PORT,
                                self.WIFI_CLIENT)
 
-                print(
-                    f"SUCCESS: Connection established @ {self.WIFI_SERVER_IP}.")
                 print(f"\tSending   at port: {self.WIFI_CLIENT_PORT}")
                 print(f"\tListening at port: {self.WIFI_SERVER_PORT}")
-                print("Ensure iPad's TouchOSC is sending to: ")
-                print(f"\tIP   : {self.WIFI_SERVER_IP}")
-                print(f"\tPort : {self.WIFI_SERVER_PORT}")
+                print("Ensure iPad's TouchOSC is set to: ")
+                print(f"\tConnection    : UDP")
+                print(f"\tHost          : {self.WIFI_SERVER_IP}")
+                print(f"\tSend Port     : {self.WIFI_SERVER_PORT}")
+                print(f"\tRecieve Port  : {self.WIFI_CLIENT_PORT}")
+                inp = input(
+                    "Set in iPad and press and press key to continue...")
+                print("Pinging iPad. Press any button in iPad to continue...")
+
+                try:
+                    self.do_ipad_user_input("Test")
+                    IPAD_AVAILABLE = True
+                    print(
+                        f"SUCCESS: iPad connection established @ {self.WIFI_SERVER_IP}.")
+                except Exception as e:
+                    print(str(e))
+                    print("FAIL: Connection timed out.")
+                    print("Using keyboard input.")
+                    IPAD_AVAILABLE = False
+                    return
             else:
+                IPAD_AVAILABLE = False
                 print("Using keyboard input.")
+                return
 
         except Exception as e:
             print("Error initializing: ")
@@ -544,6 +483,10 @@ class ExptShell(cmd.Cmd):
         with open(arg) as f:
             self.cmdqueue.extend(f.read().splitlines())
 
+    ############################
+    ####    EXPTS           ####
+    ############################
+
     def do_random_two_source(self, arg):
         'Run the random two source experiment: random_two_source runs lo hi sep dist'
         'Make sure test_signal is set.'
@@ -567,8 +510,94 @@ class ExptShell(cmd.Cmd):
         self.pos_queue.clear()
         self.input_queue.clear()
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
-        p.randomized_two_source(runs, lo, hi, sep, dist)
-        self.do_playback("randomized_two_source.txt")
+
+        if self.IPAD_AVAILABLE:
+            expt = p.randomized_two_source(
+                runs, lo, hi, sep, dist, input_type='ipad')
+        else:
+            expt = p.randomized_two_source(
+                runs, lo, hi, sep, dist, input_type='keyboard')
+
+        cmds = expt.splitlines()
+        for _cmd in cmds:
+            self.onecmd(_cmd)
+
+        # Write Results to File
+        assert(2 * len(self.input_queue) == len(self.pos_queue))
+
+        file_name = input('Enter .txt filename to write results to: ')
+
+        with open(file_name, 'w+'):
+            pass
+
+        results = {
+            "Radial Distance": [],
+            "Initial Angle": [],
+            "Final Angle": [],
+            "Direction": [],
+            "Recorded Direction": [],
+        }
+
+        for i in range(len(self.input_queue)):
+
+            recorded_dir = self.input_queue[i]
+            initial_pos = self.pos_queue[2 * i]
+            final_pos = self.pos_queue[2 * i + 1]
+            distance = np.round(float(initial_pos.split('/')[0]), 2)
+            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+            actual_dir = "right" if (
+                final_angle - init_angle) >= 0 else "left"
+
+            results['Radial Distance'].append(distance)
+            results['Initial Angle'].append(init_angle)
+            results['Final Angle'].append(final_angle)
+            results['Direction'].append(actual_dir)
+            results["Recorded Direction"].append(recorded_dir)
+
+        df = pd.DataFrame(data=results)
+        with open(file_name, 'a') as f:
+            f.write(df.to_string())
+            f.write('\n')
+
+        acc = np.mean([1 if a == b else 0 for a,
+                      b in zip(results["Recorded Direction"], results['Direction'])])
+
+        with open(file_name, 'a') as f:
+            f.write(f"Accuracy: {acc}\n")
+
+        print(f"SUCCESS: Saved results in {file_name}")
+
+        self.pos_queue = self.pos_queue[-1:]
+        self.input_queue.clear()
+        return
+
+    def do_spaced_pair_lag(self, arg):
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        expt = p.spaced_pair_lag(self.NUM_SPEAKERS)
+        cmds = expt.splitlines()
+        for _cmd in cmds:
+            self.onecmd(_cmd)
+
+        results = {
+            'Speaker Pair': [],
+            'Correlation': [],
+        }
+
+        directory = 'spaced_pair_lag'
+        for file in os.listdir(directory):
+            file_path = os.path.join(directory, file)
+            if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
+                results['Speaker Pair'].append(file.split('.')[0])
+                results['Correlation'].append(cross_corr.cross_corr(file_path))
+
+        mean_corr = np.mean(results['Correlation'])
+        df = pd.DataFrame(data=results)
+        string = df.to_string()
+        string += '\n'
+        string += f'Mean Correlation: {mean_corr}\n'
+        print(string)
         return
 
     def do_doa_expt(self, arg):
@@ -595,9 +624,110 @@ class ExptShell(cmd.Cmd):
             return
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
-        p.doa_expt(lo_angle, hi_angle, lo_dist, hi_dist,
-                   angle_interval, distance_interval, rec_dur, rec_dir)
-        self.do_playback("doa_expt.txt")
+        expt = p.doa_expt(lo_angle, hi_angle, lo_dist, hi_dist,
+                          angle_interval, distance_interval, rec_dur, rec_dir)
+
+        cmds = expt.splitlines()
+        for _cmd in cmds:
+            self.onecmd(_cmd)
+        return
+
+    def do_three_down_one_up(self, arg):
+        'Run the three-down-one-up experiment: three_down_one_up runs lo_angle hi_angle distance start_separation step_size'
+        arg = arg.split()
+
+        if len(arg) != 6:
+            print("Error: see usage (hint: help three_down_one_up)")
+            return
+
+        try:
+            runs = int(arg[0])
+            lo = float(arg[1])
+            hi = float(arg[2])
+            dist = float(arg[3])
+            init_sep = float(arg[4])
+            step_size = float(arg[5])
+        except:
+            print("Parse Error: Enter valid values")
+            return
+
+        results = {
+            "Radial Distance": [],
+            "Initial Angle": [],
+            "Final Angle": [],
+            "Separation": [],
+            "Direction": [],
+            "Recorded Direction": [],
+        }
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        correctInaRow = 0
+        sep = init_sep
+        for run in range(runs):
+
+            self.pos_queue.clear()
+            self.input_queue.clear()
+            if self.IPAD_AVAILABLE:
+                expt = p.randomized_two_source(
+                    1, lo, hi, sep, dist, input_type='ipad')
+            else:
+                expt = p.randomized_two_source(
+                    1, lo, hi, sep, dist, input_type='keyboard')
+            expt = p.randomized_two_source(1, lo, hi, sep, dist)
+            cmds = expt.splitlines()
+            for _cmd in cmds:
+                self.onecmd(_cmd)
+
+            assert(2 * len(self.input_queue) == len(self.pos_queue))
+
+            recorded_dir = self.input_queue[0]
+            initial_pos = self.pos_queue[0]
+            final_pos = self.pos_queue[1]
+            distance = np.round(float(initial_pos.split('/')[0]), 2)
+            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+            actual_dir = "right" if (
+                final_angle - init_angle) >= 0 else "left"
+
+            results['Radial Distance'].append(distance)
+            results['Initial Angle'].append(init_angle)
+            results['Final Angle'].append(final_angle)
+            results['Separation'].append(sep)
+            results['Direction'].append(actual_dir)
+            results["Recorded Direction"].append(recorded_dir)
+
+            # Correct Response
+            if recorded_dir == actual_dir:
+                correctInaRow += 1
+                if correctInaRow == 3:
+                    sep -= step_size
+                    sep = max(sep, 1.0)
+                    correctInaRow = 0
+
+            elif recorded_dir != actual_dir:  # Incorrect Response
+                sep += step_size
+                sep = min(sep, init_sep)
+                correctInaRow = 0
+
+        file_name = input('Enter .txt filename to write results to: ')
+        with open(file_name, 'w+'):
+            pass
+
+        df = pd.DataFrame(data=results)
+        with open(file_name, 'a') as f:
+            f.write(df.to_string())
+            f.write('\n')
+
+        acc = np.mean([1 if a == b else 0 for a,
+                      b in zip(results["Recorded Direction"], results['Direction'])])
+
+        with open(file_name, 'a') as f:
+            f.write(f"Accuracy: {acc}\n")
+
+        print(f"SUCCESS: Saved results in {file_name}")
+
+        self.pos_queue = self.pos_queue[-1:]
+        self.input_queue.clear()
         return
 
 

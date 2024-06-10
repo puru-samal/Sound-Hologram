@@ -3772,15 +3772,14 @@
 				"box" : 				{
 					"fontface" : 0,
 					"id" : "obj-2",
-					"linecount" : 2,
 					"maxclass" : "o.display",
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 680.5, 210.0, 143.0, 46.0 ],
+					"patching_rect" : [ 680.5, 210.0, 143.0, 33.0 ],
 					"presentation" : 1,
 					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ],
-					"text" : "/play-rec/record : 4000"
+					"text" : "/play : 1"
 				}
 
 			}
