@@ -103,12 +103,12 @@ class PresetGenerator:
 
         return self.write_to_str()
 
-    def spaced_pair_lag(self, num_speakers):
+    def spaced_pair_lag(self, num_speakers, rec_dir):
 
         for sp in range(num_speakers//2):
             self.set_two_speaker(sp, (num_speakers-1) - sp)
             self.play_rec(
-                f'spaced_pair_lag/{sp}_{(num_speakers-1) - sp}.wav', 1000)
+                f'{rec_dir}/{sp}_{(num_speakers-1) - sp}.wav', 1000)
 
         self.process_cross_corr('calc_lag')
         return self.write_to_str()

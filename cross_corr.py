@@ -10,7 +10,7 @@ import scipy
 import matplotlib.pyplot as plt
 
 
-def cross_corr(filename):
+def cross_corr(filename, true_peak=True):
 
     Fs, x = scipy.io.wavfile.read(filename)
     x = x.astype(np.float32)
@@ -20,12 +20,15 @@ def cross_corr(filename):
     right_ch /= np.max(np.abs(right_ch))
 
     corr = scipy.signal.correlate(left_ch, right_ch, mode='full')
-    lags = scipy.signal.correlation_lags(left_ch.size, right_ch, mode="full")
+    lags = scipy.signal.correlation_lags(
+        left_ch.size, right_ch.size, mode="full")
 
     x_mid = lags[np.argmax(corr)]
-    alpha = corr[np.argmax(corr) - 1]
-    beta = corr[np.argmax(corr)]
-    gamma = corr[np.argmax(corr) + 1]
-
-    p = 0.5 * (alpha - gamma) / (alpha - 2 * beta + gamma)
-    return x_mid + p
+    if true_peak:
+        alpha = corr[np.argmax(corr) - 1]
+        beta = corr[np.argmax(corr)]
+        gamma = corr[np.argmax(corr) + 1]
+        p = 0.5 * (alpha - gamma) / (alpha - 2 * beta + gamma)
+        return x_mid + p
+    else:
+        return x_mid

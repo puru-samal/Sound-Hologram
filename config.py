@@ -44,6 +44,8 @@ class Speakers:
             raise Exception("Invalid argument. Format: [x, y, z]")
 
         self.config[f'{self.tag}/{idx}/xyz'] = {'type': ",fff", "value": xyz}
+        self.config[f'{self.tag}/{idx}/direction/xyz'] = {'type': ",fff",
+                                                          "value": [0.0, -1.0, 0.0]}
 
     def toStrList(self):
 
@@ -79,6 +81,12 @@ class Sources:
         self.config[f'{self.tag}/*/coordinates/visible'] = {'type': ",i", "value": [1]}
         self.config[f'{self.tag}/*/label/visible'] = {'type': ",i", "value": [1]}
         self.config[f'{self.tag}/*/mute'] = {'type': ",i", "value": [1]}
+        self.config[f'{self.tag}/*/orientation/mode'] = {'type': ",s",
+                                                         "value": ['default']}
+        self.config[f'{self.tag}/*/orientation'] = {'type': ",fff",
+                                                    "value": [0.0, 0.0, 0.0, 1.0]}
+        self.config[f'{self.tag}/*/lookat/xyz'] = {'type': ",fff",
+                                                   "value": [0.0, 0.0, 0.0]}
 
     def set_source_pos(self, idx, aed):
 

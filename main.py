@@ -23,6 +23,7 @@ import cross_corr
 import socket
 from scipy.io import wavfile
 import scipy.signal as sps
+import doa
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -56,8 +57,8 @@ class ExptShell(cmd.Cmd):
     NUM_SPEAKERS = 64
     YM = 3.53   # Horizontal Distance of Midpoint from origin (Make Input)
     SP = 0.059  # SPacing between SPeakers (Make Input)
-    XPOS = np.arange(SP * -(NUM_SPEAKERS/2 - 1.0),
-                     (NUM_SPEAKERS/2 + 1.0) * SP, SP)
+    XPOS = np.linspace(-1.0, 1.0, num=64, endpoint=True) * \
+        ((SP * (NUM_SPEAKERS - 1))/2)
     NUM_SOURCES = 1
     SAMPLE_RATE = 48000  # Make sure Max is set to the same
 
@@ -84,12 +85,16 @@ class ExptShell(cmd.Cmd):
     test.generate(dur=250/1000, amp=0.25, zero_pad=0.001, repititions=1)
     filename = "wn_250.wav"
     test.write(filename)
+    test.generate(dur=500/1000, amp=0.25, zero_pad=0.001, repititions=1)
+    filename = "wn_500.wav"
+    test.write(filename)
 
     print(f'Generated 4 test signals at {SAMPLE_RATE}Hz: ')
     print("\tWhite Noise  (20ms)  as  wn_20.wav")
     print("\tWhite Noise  (50ms)  as  wn_50.wav")
     print("\tWhite Noise (100ms)  as  wn_100.wav")
     print("\tWhite Noise (250ms)  as  wn_250.wav")
+    print("\tWhite Noise (500ms)  as  wn_500.wav")
 
     ############################
     #### OSC EVENT HANDLERS ####
@@ -230,14 +235,14 @@ class ExptShell(cmd.Cmd):
 
                 try:
                     self.do_ipad_user_input("Test")
-                    IPAD_AVAILABLE = True
+                    self.IPAD_AVAILABLE = True
                     print(
                         f"SUCCESS: iPad connection established @ {self.WIFI_SERVER_IP}.")
                 except Exception as e:
                     print(str(e))
                     print("FAIL: Connection timed out.")
                     print("Using keyboard input.")
-                    IPAD_AVAILABLE = False
+                    self.IPAD_AVAILABLE = False
                     return
             else:
                 IPAD_AVAILABLE = False
@@ -251,6 +256,7 @@ class ExptShell(cmd.Cmd):
 
     def do_init_spat(self, arg):
         'Initialize spat5.wfs~: init_spat'
+
         # Setup Speakers
         Speakers = config.Speakers(self.NUM_SPEAKERS)
         ### Set Speaker Positions ####
@@ -269,15 +275,18 @@ class ExptShell(cmd.Cmd):
             self.pos_queue.append(f'{self.YM/2}/{angles[i]}')
 
         filename = "config.txt"
-        # Write To Preset File
-        with open("config-init.txt", "r") as init, open("config.txt", "w") as f:
-            f.truncate(0)
-            for line in init:
-                f.write(line)
+        if os.path.isfile(os.path.join(os.getcwd(), filename)):
+            pass
+        else:
+            # Write To Preset File
+            with open("config-init.txt", "r") as init, open("config.txt", "w") as f:
+                f.truncate(0)
+                for line in init:
+                    f.write(line)
 
-            f.write("\n")
-            f.writelines(Speakers.toStrList())
-            f.writelines(sources.toStrList())
+                f.write("\n")
+                f.writelines(Speakers.toStrList())
+                f.writelines(sources.toStrList())
 
         msg = oscbuildparse.OSCMessage(
             "/init-spat/preset/load", ",s", [filename])
@@ -361,6 +370,7 @@ class ExptShell(cmd.Cmd):
         msg = oscbuildparse.OSCMessage(
             f"/speaker-ch/gains", fmt, list(gains))
         osc_send(msg, self.CLIENT)
+        self.block_until_recieved()
 
     def do_play(self, arg):
         'Plays all unmuted sources: play'
@@ -573,26 +583,38 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_spaced_pair_lag(self, arg):
+        'Run the experiment to validate centre position: spaced_pair_lag rec_dir'
+        'Use wn_20.wav'
+
+        arg = arg.split()
+        if len(arg) != 1:
+            print("Error: see usage (hint: help spaced_pair_lag)")
+            return
+
+        try:
+            directory = arg[0]
+        except:
+            print("Parse Error: Enter valid values")
+            return
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
-        expt = p.spaced_pair_lag(self.NUM_SPEAKERS)
+        expt = p.spaced_pair_lag(self.NUM_SPEAKERS, directory)
         cmds = expt.splitlines()
         for _cmd in cmds:
             self.onecmd(_cmd)
 
         results = {
             'Speaker Pair': [],
-            'Correlation': [],
+            'Delta T': [],
         }
 
-        directory = 'spaced_pair_lag'
         for file in os.listdir(directory):
             file_path = os.path.join(directory, file)
             if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
                 results['Speaker Pair'].append(file.split('.')[0])
-                results['Correlation'].append(cross_corr.cross_corr(file_path))
+                results['Delta T'].append(cross_corr.cross_corr(file_path))
 
-        mean_corr = np.mean(results['Correlation'])
+        mean_corr = np.mean(results['Delta T'])
         df = pd.DataFrame(data=results)
         string = df.to_string()
         string += '\n'
@@ -630,6 +652,45 @@ class ExptShell(cmd.Cmd):
         cmds = expt.splitlines()
         for _cmd in cmds:
             self.onecmd(_cmd)
+
+        results = {
+            "Radial Distance": [],
+            "Wfs Angle": [],
+            "Delta T": [],
+            "Calculated Angle": [],
+            "Error": [],
+        }
+
+        dis_mic = input('Enter distance between mics: ')
+        dis_mic = float(dis_mic)
+
+        C = input('Enter speed of sound: ')
+        C = float(C)
+
+        for file in os.listdir(rec_dir):
+            file_path = os.path.join(rec_dir, file)
+            if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
+                f = file[:-4]
+                wfs_angle = float(f.split('_')[1])
+                radial_distance = float(f.split('_')[2])
+                delta_t = cross_corr.cross_corr(file_path)
+                calc_angle = doa.two_mic_doa(delta_t, dis_mic, C)
+
+                results['Radial Distance'].append(radial_distance)
+                results['Wfs Angle'].append(wfs_angle)
+                results['Delta T'].append(delta_t)
+                results['Calculated Angle'].append(calc_angle)
+                results['Error'].append(abs(wfs_angle-calc_angle))
+
+        file_name = input('Enter .txt filename to write results to: ')
+        with open(file_name, 'w+'):
+            pass
+
+        df = pd.DataFrame(data=results)
+        with open(file_name, 'a') as f:
+            f.write(df.to_string())
+        print(f"SUCCESS: Saved results in {file_name}")
+
         return
 
     def do_three_down_one_up(self, arg):
@@ -667,13 +728,14 @@ class ExptShell(cmd.Cmd):
 
             self.pos_queue.clear()
             self.input_queue.clear()
+
             if self.IPAD_AVAILABLE:
                 expt = p.randomized_two_source(
                     1, lo, hi, sep, dist, input_type='ipad')
             else:
                 expt = p.randomized_two_source(
                     1, lo, hi, sep, dist, input_type='keyboard')
-            expt = p.randomized_two_source(1, lo, hi, sep, dist)
+
             cmds = expt.splitlines()
             for _cmd in cmds:
                 self.onecmd(_cmd)
