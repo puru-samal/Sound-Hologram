@@ -110,7 +110,6 @@ class PresetGenerator:
             self.play_rec(
                 f'{rec_dir}/{sp}_{(num_speakers-1) - sp}.wav', 1000)
 
-        self.process_cross_corr('calc_lag')
         return self.write_to_str()
 
 

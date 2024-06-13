@@ -240,7 +240,7 @@ class ExptShell(cmd.Cmd):
                         f"SUCCESS: iPad connection established @ {self.WIFI_SERVER_IP}.")
                 except Exception as e:
                     print(str(e))
-                    print("FAIL: Connection timed out.")
+                    print("FAIL: Connection timed out. Retry again.")
                     print("Using keyboard input.")
                     self.IPAD_AVAILABLE = False
                     return
@@ -541,11 +541,11 @@ class ExptShell(cmd.Cmd):
             pass
 
         results = {
-            "Radial Distance": [],
-            "Initial Angle": [],
-            "Final Angle": [],
+            "Radial_Distance": [],
+            "Initial_Angle": [],
+            "Final_Angle": [],
             "Direction": [],
-            "Recorded Direction": [],
+            "Recorded_Direction": [],
         }
 
         for i in range(len(self.input_queue)):
@@ -559,11 +559,11 @@ class ExptShell(cmd.Cmd):
             actual_dir = "right" if (
                 final_angle - init_angle) >= 0 else "left"
 
-            results['Radial Distance'].append(distance)
-            results['Initial Angle'].append(init_angle)
-            results['Final Angle'].append(final_angle)
+            results['Radial_Distance'].append(distance)
+            results['Initial_Angle'].append(init_angle)
+            results['Final_Angle'].append(final_angle)
             results['Direction'].append(actual_dir)
-            results["Recorded Direction"].append(recorded_dir)
+            results["Recorded_Direction"].append(recorded_dir)
 
         df = pd.DataFrame(data=results)
         with open(file_name, 'a') as f:
@@ -571,7 +571,7 @@ class ExptShell(cmd.Cmd):
             f.write('\n')
 
         acc = np.mean([1 if a == b else 0 for a,
-                      b in zip(results["Recorded Direction"], results['Direction'])])
+                      b in zip(results["Recorded_Direction"], results['Direction'])])
 
         with open(file_name, 'a') as f:
             f.write(f"Accuracy: {acc}\n")
@@ -604,17 +604,17 @@ class ExptShell(cmd.Cmd):
             self.onecmd(_cmd)
 
         results = {
-            'Speaker Pair': [],
-            'Delta T': [],
+            'Speaker_Pair': [],
+            'Delta_T': [],
         }
 
-        for file in os.listdir(directory):
+        for file in sorted(os.listdir(directory), key=lambda x: int(x.split('_')[0])):
             file_path = os.path.join(directory, file)
             if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
-                results['Speaker Pair'].append(file.split('.')[0])
-                results['Delta T'].append(cross_corr.cross_corr(file_path))
+                results['Speaker_Pair'].append(file.split('.')[0])
+                results['Delta_T'].append(cross_corr.cross_corr(file_path))
 
-        mean_corr = np.mean(results['Delta T'])
+        mean_corr = np.mean(results['Delta_T'])
         df = pd.DataFrame(data=results)
         string = df.to_string()
         string += '\n'
@@ -654,10 +654,10 @@ class ExptShell(cmd.Cmd):
             self.onecmd(_cmd)
 
         results = {
-            "Radial Distance": [],
-            "Wfs Angle": [],
-            "Delta T": [],
-            "Calculated Angle": [],
+            "Radial_Distance": [],
+            "Wfs_Angle": [],
+            "Delta_T": [],
+            "Calculated_Angle": [],
             "Error": [],
         }
 
@@ -667,19 +667,19 @@ class ExptShell(cmd.Cmd):
         C = input('Enter speed of sound: ')
         C = float(C)
 
-        for file in os.listdir(rec_dir):
+        for file in sorted(os.listdir(rec_dir), key=lambda x: (float(x.split('_')[1]), float(x.split('_')[2][:-4]))):
             file_path = os.path.join(rec_dir, file)
             if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
                 f = file[:-4]
                 wfs_angle = float(f.split('_')[1])
                 radial_distance = float(f.split('_')[2])
-                delta_t = cross_corr.cross_corr(file_path)
+                delta_t = cross_corr.cross_corr(file_path)/self.SAMPLE_RATE
                 calc_angle = doa.two_mic_doa(delta_t, dis_mic, C)
 
-                results['Radial Distance'].append(radial_distance)
-                results['Wfs Angle'].append(wfs_angle)
-                results['Delta T'].append(delta_t)
-                results['Calculated Angle'].append(calc_angle)
+                results['Radial_Distance'].append(radial_distance)
+                results['Wfs_Angle'].append(wfs_angle)
+                results['Delta_T'].append(delta_t)
+                results['Calculated_Angle'].append(calc_angle)
                 results['Error'].append(abs(wfs_angle-calc_angle))
 
         file_name = input('Enter .txt filename to write results to: ')
@@ -694,41 +694,54 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_three_down_one_up(self, arg):
-        'Run the three-down-one-up experiment: three_down_one_up runs lo_angle hi_angle distance start_separation step_size'
+        'Run the three-down-one-up experiment: three_down_one_up reversals lo_angle hi_angle distance start_separation'
         arg = arg.split()
 
-        if len(arg) != 6:
+        if len(arg) != 5:
             print("Error: see usage (hint: help three_down_one_up)")
             return
 
         try:
-            runs = int(arg[0])
+            reversals = int(arg[0])
             lo = float(arg[1])
             hi = float(arg[2])
             dist = float(arg[3])
             init_sep = float(arg[4])
-            step_size = float(arg[5])
         except:
             print("Parse Error: Enter valid values")
             return
 
         results = {
-            "Radial Distance": [],
-            "Initial Angle": [],
-            "Final Angle": [],
+            "Radial_Distance": [],
+            "Initial_Angle": [],
+            "Final_Angle": [],
             "Separation": [],
             "Direction": [],
-            "Recorded Direction": [],
+            "Recorded_Direction": [],
+            "Reversal": [],
         }
 
-        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
-        correctInaRow = 0
-        sep = init_sep
-        for run in range(runs):
+        # Variable step size
+        separations = []
+        while init_sep > 0.0:
+            separations.append(init_sep)
+            init_sep = (
+                init_sep - 5.0) if init_sep > 10.0 else (init_sep - 3.0)
 
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+
+        # State Variables
+        correctInaRow = 0
+        curr_reversals = 0
+        state = -1  # -1 -> down, +1 -> up
+        sep_idx = 0
+        sep = separations[sep_idx]
+
+        while curr_reversals != reversals:
             self.pos_queue.clear()
             self.input_queue.clear()
 
+            # Generate experiment
             if self.IPAD_AVAILABLE:
                 expt = p.randomized_two_source(
                     1, lo, hi, sep, dist, input_type='ipad')
@@ -736,12 +749,15 @@ class ExptShell(cmd.Cmd):
                 expt = p.randomized_two_source(
                     1, lo, hi, sep, dist, input_type='keyboard')
 
+            # Do experiment
             cmds = expt.splitlines()
             for _cmd in cmds:
                 self.onecmd(_cmd)
 
+            # For every input there should be two stored positions in queue
             assert(2 * len(self.input_queue) == len(self.pos_queue))
 
+            # Calculate entries
             recorded_dir = self.input_queue[0]
             initial_pos = self.pos_queue[0]
             final_pos = self.pos_queue[1]
@@ -751,26 +767,39 @@ class ExptShell(cmd.Cmd):
             actual_dir = "right" if (
                 final_angle - init_angle) >= 0 else "left"
 
-            results['Radial Distance'].append(distance)
-            results['Initial Angle'].append(init_angle)
-            results['Final Angle'].append(final_angle)
+            # Store entries in a dict
+            results['Radial_Distance'].append(distance)
+            results['Initial_Angle'].append(init_angle)
+            results['Final_Angle'].append(final_angle)
             results['Separation'].append(sep)
             results['Direction'].append(actual_dir)
-            results["Recorded Direction"].append(recorded_dir)
+            results["Recorded_Direction"].append(recorded_dir)
+            results["Reversal"].append('-')
 
-            # Correct Response
+            # If correct Response
             if recorded_dir == actual_dir:
                 correctInaRow += 1
-                if correctInaRow == 3:
-                    sep -= step_size
-                    sep = max(sep, 1.0)
+                state = -1
+
+                if correctInaRow == 3:  # three down
+                    sep_idx = min(sep_idx + 1, (len(separations) - 1))
+                    sep = separations[sep_idx]
                     correctInaRow = 0
 
-            elif recorded_dir != actual_dir:  # Incorrect Response
-                sep += step_size
-                sep = min(sep, init_sep)
+            # If incorrect Response
+            elif recorded_dir != actual_dir:  # one up
+                sep_idx = max(sep_idx - 1, 0)
+                sep = separations[sep_idx]
                 correctInaRow = 0
 
+                # If state previously stores is not up
+                # Update reversal
+                if state != 1:
+                    state = 1
+                    curr_reversals += 1
+                    results["Reversal"][-1] = '*'
+
+        # Write results to text file
         file_name = input('Enter .txt filename to write results to: ')
         with open(file_name, 'w+'):
             pass
@@ -781,13 +810,14 @@ class ExptShell(cmd.Cmd):
             f.write('\n')
 
         acc = np.mean([1 if a == b else 0 for a,
-                      b in zip(results["Recorded Direction"], results['Direction'])])
+                      b in zip(results["Recorded_Direction"], results['Direction'])])
 
         with open(file_name, 'a') as f:
             f.write(f"Accuracy: {acc}\n")
 
         print(f"SUCCESS: Saved results in {file_name}")
 
+        # discard all but most recent position
         self.pos_queue = self.pos_queue[-1:]
         self.input_queue.clear()
         return

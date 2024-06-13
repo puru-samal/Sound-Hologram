@@ -1,42 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
-import librosa
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
 
-def find_time_difference(file_path, true_peak=True):
-    """
-    Find the time difference between two channels of a audio file using cross-correlation
 
-    Parameters:
-    file_path (string): The path to a stereo wav file
-    true_peak (bool):   Whether calculate the lag index for the true peak correlation value
-
-    Returns:
-    float: sample rate
-    float: lag between two channels in samples
-    float: lag between two channels in seconds
-    """
-    y, sr = librosa.load(file_path, sr=None, mono=False)
-
-    left_channel = y[0]
-    right_channel = y[1]
-
-    correlation = sp.signal.correlate(left_channel, right_channel, mode='full')
-    lags = sp.signal.correlation_lags(left_channel.size, right_channel.size, mode='full')
-    idx = np.argmax(correlation)
-    lag = lags[idx]
-
-    if true_peak:
-        alpha = correlation[idx-1]
-        beta = correlation[idx]
-        gama = correlation[idx+1]
-        p = 0.5 * (alpha - gama) / (alpha - 2*beta + gama)
-        # print(f"sr:{sr}, lag:{lag}, p:{p}, true_lag:{lag+p}")
-        return sr, lag+p, (lag+p)/sr
-    else:
-        return sr, lag, lag/sr
-
-def two_mic_doa(delta_t, dis_mic, C, ideal_x = 2.0, save_plot=False):
+def two_mic_doa(delta_t, dis_mic, C, ideal_x=2.0, save_plot=False):
     """
     Find the direction of arrival by using the time difference between 2 mics
 
@@ -58,8 +27,8 @@ def two_mic_doa(delta_t, dis_mic, C, ideal_x = 2.0, save_plot=False):
     delta_d = C*abs(delta_t)
     x_b = dis_mic * 0.5
 
-    delta_d_2 = (delta_d**2) # square of delta_d
-    x_b_2 = (x_b**2) # square of x_b
+    delta_d_2 = (delta_d**2)  # square of delta_d
+    x_b_2 = (x_b**2)  # square of x_b
 
     # min_pos_x = np.sqrt(-(delta_d_2)*(delta_d_2 - 4*x_b_2)/(4*(4*x_b_2 - delta_d_2)))
 
@@ -68,31 +37,33 @@ def two_mic_doa(delta_t, dis_mic, C, ideal_x = 2.0, save_plot=False):
     # print(f"P:{P}\nQ:{Q}\nmin_pos_x:{min_pos_x}")
 
     if ideal_x < dis_mic * 0.5:
-        raise ValueError(f"ideal_x ({ideal_x}) needs to be greater than the half of the dis_mic ({dis_mic * 0.5})")
+        raise ValueError(
+            f"ideal_x ({ideal_x}) needs to be greater than the half of the dis_mic ({dis_mic * 0.5})")
         return 0.0
-    
+
     x = np.linspace(dis_mic * 0.5, ideal_x, 1000)
     y = (np.sqrt(P + (x**2)*Q))
     dy_dx = (Q*x) / (np.sqrt(P + (x**2)*Q))
     theta = (90 - np.rad2deg(np.arctan(dy_dx)))
 
-    if delta_t < 0: # change the sign if needed
+    if delta_t < 0:  # change the sign if needed
         theta *= -1
 
     if save_plot:
         plt.figure(figsize=(22, 14))
-        plt.subplot(3,1,1)
-        plt.title(f"time_diff:{delta_t} (s), dist_mic:{dis_mic} (m), sound_speed:{C} (m/s)")
+        plt.subplot(3, 1, 1)
+        plt.title(
+            f"time_diff:{delta_t} (s), dist_mic:{dis_mic} (m), sound_speed:{C} (m/s)")
         plt.plot(x, y)
         plt.xlabel('x (meter)')
         plt.ylabel('y (meter)')
-        
-        plt.subplot(3,1,2)
+
+        plt.subplot(3, 1, 2)
         plt.plot(x, dy_dx)
         plt.xlabel('x (meter)')
         plt.ylabel('dy/dx')
 
-        plt.subplot(3,1,3)
+        plt.subplot(3, 1, 3)
         plt.plot(x, theta)
         plt.xlabel('x (meter)')
         plt.ylabel('angle (degree)')
@@ -102,4 +73,95 @@ def two_mic_doa(delta_t, dis_mic, C, ideal_x = 2.0, save_plot=False):
     return theta[len(x) - 1]
 
 
+def plot_doa_results(result_file_path, YM=3.53, SP=0.059, NUM_SPEAKERS=64):
+    """
+    Plot the result of the direction of arrival experiment
+
+    Parameters:
+    result_file_path (str): Filepath of results txt file
+    YM (float): Distance from listener to midpoint of speaker array
+    SP (float): Spacing between each speaker in linear array
+    NUM_SPEAKER (int): Number of speakers in linear array
+
+
+    Returns:
+    None: Plots the results
+    """
+
+    # Parse data
+    data = np.loadtxt(result_file_path, dtype=str, delimiter='\t')
+
+    # Generate Result Dict
+    result_dict = {k: [] for k in data[0].split()}
+    for row in data[1:]:
+        row_split = row.split()[1:]
+        for i, key in enumerate(result_dict.keys()):
+            result_dict[key].append(round(float(row_split[i]), 2))
+
+    # Initialize Plots
+    fig, ax = plt.subplots()
+    fig.set_size_inches(12, 12)
+    plt.axhline(0, color='green')  # x = 0
+    plt.axvline(0, color='black')  # y = 0
+    ax.set_aspect(1)
+    ax.set_xlim(-2, 2)
+    ax.set_ylim(-0.1, 4)
+    ax.set_title('Error between WFS angle and measured DOA')
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+
+    # Step 3: Add a subtitle
+    subtitle_text = 'Recorded at 0.1*YM(m) and 2.5$^\circ$ intervals'
+    subtitle_x = 1.0  # X position of the subtitle
+    subtitle_y = 3.7  # Y position of the subtitle
+    ax.text(subtitle_x, subtitle_y, subtitle_text,
+            ha='center', fontsize=10, color='black')
+
+    # Draw Circular Grid at 0.1 * radius intervals
+    theta = np.linspace(0.0, np.pi, 150)
+    radii = np.arange(0, 1.5, 0.1) * YM
+    for r in radii:  # Plot Circles
+        X = r * np.cos(theta)
+        Y = r * np.sin(theta)
+        ax.plot(X, Y, linewidth=0.23, color='black')
+
+    # Draw lines at 2.5 degree intervals
+    theta = np.linspace(0.0, np.pi, 72+1)
+    radii = np.linspace(0, 1, num=100) * 5
+    for t in theta:
+        X = radii * np.cos(t)
+        Y = radii * np.sin(t)
+        ax.plot(X, Y, linewidth=0.23, color='black')
+
+    # Plot Speakers
+    XPOS = np.linspace(-1.0, 1.0, num=NUM_SPEAKERS, endpoint=True) * \
+        ((SP * (NUM_SPEAKERS - 1))/2)
+    ax.plot(XPOS, YM * np.ones_like(XPOS), 'r-',
+            linewidth=6.0, markersize=10, alpha=0.75)
+
+    # Set and normalize color map
+    cmap = plt.get_cmap('plasma')
+    norm = Normalize(vmin=min(result_dict['Error']),
+                     vmax=max(result_dict['Error']))
+
+    # Plot locations where DOA was calculated
+    # Color indicates Error between Wfs angle and measured angle
+    num_pos = len(result_dict['Radial_Distance'])
+    for i in range(num_pos):
+        dist = result_dict['Radial_Distance'][i] * YM
+        angle = (-np.radians(result_dict['Wfs_Angle'][i]) + np.pi/2)
+        X = dist * np.cos(angle)
+        Y = dist * np.sin(angle)
+        c = cmap(norm(result_dict['Error'][i]))
+        ax.plot(X, Y, 'o', color=c, markersize=6, alpha=0.75)  # Plot Source
+
+    # Plot coloebar indicating error rate
+    cbar = fig.colorbar(ScalarMappable(norm=norm, cmap=cmap),
+                        ax=ax, orientation='horizontal', shrink=0.5, pad=0.07)
+
+    cbar.set_label("Error")
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+
+
+plot_doa_results('doa_test/result.txt')
 # print(two_mic_doa(0.00015, 0.15, 343, ideal_x=1, save_plot=True))
