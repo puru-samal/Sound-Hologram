@@ -1,8 +1,50 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun 14 12:09:30 2024
+
+@author: puruboii
+"""
+
 import numpy as np
+import scipy
 import matplotlib.pyplot as plt
-import scipy as sp
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
+
+
+def cross_corr(filename, true_peak=True):
+    """
+    Find the direction of arrival by using the time difference between 2 mics
+
+    Parameters:
+    filename    (str): Path to stereo audio file
+    true_peak  (bool): True fits a parabola near top 3 maximum values to extimate true peak
+
+    Returns:
+    float: correlation lag in samples
+    """
+
+    Fs, x = scipy.io.wavfile.read(filename)
+    x = x.astype(np.float32)
+    left_ch = x[:, 0]
+    left_ch /= np.max(np.abs(left_ch))
+    right_ch = x[:, 1]
+    right_ch /= np.max(np.abs(right_ch))
+
+    corr = scipy.signal.correlate(left_ch, right_ch, mode='full')
+    lags = scipy.signal.correlation_lags(
+        left_ch.size, right_ch.size, mode="full")
+
+    x_mid = lags[np.argmax(corr)]
+    if true_peak:
+        alpha = corr[np.argmax(corr) - 1]
+        beta = corr[np.argmax(corr)]
+        gamma = corr[np.argmax(corr) + 1]
+        p = 0.5 * (alpha - gamma) / (alpha - 2 * beta + gamma)
+        return x_mid + p
+    else:
+        return x_mid
 
 
 def two_mic_doa(delta_t, dis_mic, C, ideal_x=2.0, save_plot=False):
@@ -73,12 +115,34 @@ def two_mic_doa(delta_t, dis_mic, C, ideal_x=2.0, save_plot=False):
     return theta[len(x) - 1]
 
 
-def plot_doa_results(result_file_path, YM=3.53, SP=0.059, NUM_SPEAKERS=64):
+def dfText2Dict(filename):
+    # Parse data
+    data = np.loadtxt(filename, dtype=str, delimiter='\t')
+
+    # Generate Result Dict
+    result_dict = {k: [] for k in data[0].split()}
+
+    for row in data[1:]:
+        row_split = row.split()[1:]
+        assert(len(row_split) == len(result_dict.keys()))
+
+        for i, key in enumerate(result_dict.keys()):
+            try:
+                d = round(float(row_split[i]), 3)
+            except:
+                d = row_split[i]
+
+            result_dict[key].append(d)
+
+    return result_dict
+
+
+def plot_doa_results(result_dict, YM=3.53, SP=0.059, NUM_SPEAKERS=64):
     """
     Plot the result of the direction of arrival experiment
 
     Parameters:
-    result_file_path (str): Filepath of results txt file
+    result_dict (dict): A dictonary created by running dfTest2Dict on the .txt file from DOA expt
     YM (float): Distance from listener to midpoint of speaker array
     SP (float): Spacing between each speaker in linear array
     NUM_SPEAKER (int): Number of speakers in linear array
@@ -87,16 +151,6 @@ def plot_doa_results(result_file_path, YM=3.53, SP=0.059, NUM_SPEAKERS=64):
     Returns:
     None: Plots the results
     """
-
-    # Parse data
-    data = np.loadtxt(result_file_path, dtype=str, delimiter='\t')
-
-    # Generate Result Dict
-    result_dict = {k: [] for k in data[0].split()}
-    for row in data[1:]:
-        row_split = row.split()[1:]
-        for i, key in enumerate(result_dict.keys()):
-            result_dict[key].append(round(float(row_split[i]), 2))
 
     # Initialize Plots
     fig, ax = plt.subplots()
@@ -163,5 +217,7 @@ def plot_doa_results(result_file_path, YM=3.53, SP=0.059, NUM_SPEAKERS=64):
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
 
-plot_doa_results('doa_test/result.txt')
+#result_dict = dfText2Dict('test_rev.txt')
+# plt.plot(result_dict['Separation'])
+# plot_doa_results('doa_test/result.txt')
 # print(two_mic_doa(0.00015, 0.15, 343, ideal_x=1, save_plot=True))

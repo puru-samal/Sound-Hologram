@@ -19,11 +19,11 @@ import preset_generator
 from pathlib import Path
 import pandas as pd
 import queue
-import cross_corr
 import socket
 from scipy.io import wavfile
 import scipy.signal as sps
-import doa
+import utils
+
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -568,15 +568,12 @@ class ExptShell(cmd.Cmd):
         df = pd.DataFrame(data=results)
         with open(file_name, 'a') as f:
             f.write(df.to_string())
-            f.write('\n')
+
+        print(f"SUCCESS: Saved results in {file_name}")
 
         acc = np.mean([1 if a == b else 0 for a,
                       b in zip(results["Recorded_Direction"], results['Direction'])])
-
-        with open(file_name, 'a') as f:
-            f.write(f"Accuracy: {acc}\n")
-
-        print(f"SUCCESS: Saved results in {file_name}")
+        print(f"Accuracy: {acc}\n")
 
         self.pos_queue = self.pos_queue[-1:]
         self.input_queue.clear()
@@ -612,7 +609,7 @@ class ExptShell(cmd.Cmd):
             file_path = os.path.join(directory, file)
             if os.path.isfile(file_path) and file_path.split('.')[-1] == 'wav':
                 results['Speaker_Pair'].append(file.split('.')[0])
-                results['Delta_T'].append(cross_corr.cross_corr(file_path))
+                results['Delta_T'].append(utils.cross_corr(file_path))
 
         mean_corr = np.mean(results['Delta_T'])
         df = pd.DataFrame(data=results)
@@ -673,8 +670,8 @@ class ExptShell(cmd.Cmd):
                 f = file[:-4]
                 wfs_angle = float(f.split('_')[1])
                 radial_distance = float(f.split('_')[2])
-                delta_t = cross_corr.cross_corr(file_path)/self.SAMPLE_RATE
-                calc_angle = doa.two_mic_doa(delta_t, dis_mic, C)
+                delta_t = utils.cross_corr(file_path)/self.SAMPLE_RATE
+                calc_angle = utils.two_mic_doa(delta_t, dis_mic, C)
 
                 results['Radial_Distance'].append(radial_distance)
                 results['Wfs_Angle'].append(wfs_angle)
@@ -725,8 +722,12 @@ class ExptShell(cmd.Cmd):
         separations = []
         while init_sep > 0.0:
             separations.append(init_sep)
-            init_sep = (
-                init_sep - 5.0) if init_sep > 10.0 else (init_sep - 3.0)
+            if init_sep > 10.0:
+                init_sep = init_sep - 5.0
+            elif init_sep > 4.0 and init_sep <= 10.0:
+                init_sep = init_sep - 3.0
+            else:
+                init_sep = (init_sep - 1.0)
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
 
@@ -779,12 +780,19 @@ class ExptShell(cmd.Cmd):
             # If correct Response
             if recorded_dir == actual_dir:
                 correctInaRow += 1
-                state = -1
 
                 if correctInaRow == 3:  # three down
                     sep_idx = min(sep_idx + 1, (len(separations) - 1))
                     sep = separations[sep_idx]
                     correctInaRow = 0
+
+                    # If state previously stored is not down
+                    # Update state
+                    # Update reversal
+                    if state != -1:
+                        state = -1
+                        curr_reversals += 1
+                        results["Reversal"][-1] = '*'
 
             # If incorrect Response
             elif recorded_dir != actual_dir:  # one up
@@ -792,7 +800,8 @@ class ExptShell(cmd.Cmd):
                 sep = separations[sep_idx]
                 correctInaRow = 0
 
-                # If state previously stores is not up
+                # If state previously stored is not up
+                # Update state
                 # Update reversal
                 if state != 1:
                     state = 1
@@ -807,15 +816,12 @@ class ExptShell(cmd.Cmd):
         df = pd.DataFrame(data=results)
         with open(file_name, 'a') as f:
             f.write(df.to_string())
-            f.write('\n')
+
+        print(f"SUCCESS: Saved results in {file_name}")
 
         acc = np.mean([1 if a == b else 0 for a,
                       b in zip(results["Recorded_Direction"], results['Direction'])])
-
-        with open(file_name, 'a') as f:
-            f.write(f"Accuracy: {acc}\n")
-
-        print(f"SUCCESS: Saved results in {file_name}")
+        print(f"Accuracy: {acc}\n")
 
         # discard all but most recent position
         self.pos_queue = self.pos_queue[-1:]
