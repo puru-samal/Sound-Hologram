@@ -29,7 +29,7 @@ import utils
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
                     '%(levelname)s - %(message)s')
 logger = None  # Comment and uncomment lines below to log OSC messages
-#logger = logging.getLogger("osc")
+# logger = logging.getLogger("osc")
 # logger.setLevel(logging.DEBUG)
 
 
@@ -687,11 +687,10 @@ class ExptShell(cmd.Cmd):
         with open(file_name, 'a') as f:
             f.write(df.to_string())
         print(f"SUCCESS: Saved results in {file_name}")
-
         return
 
-    def do_three_down_one_up(self, arg):
-        'Run the three-down-one-up experiment: three_down_one_up reversals lo_angle hi_angle distance start_separation'
+    def do_3D1U_ST_Random(self, arg):
+        'Run the three-down-one-up experiment: 3D1U_ST_Random reversals lo_angle hi_angle distance start_separation'
         arg = arg.split()
 
         if len(arg) != 5:
@@ -822,6 +821,585 @@ class ExptShell(cmd.Cmd):
         acc = np.mean([1 if a == b else 0 for a,
                       b in zip(results["Recorded_Direction"], results['Direction'])])
         print(f"Accuracy: {acc}\n")
+
+        # discard all but most recent position
+        self.pos_queue = self.pos_queue[-1:]
+        self.input_queue.clear()
+        return
+
+    def do_3D1U_ST_Fixed(self, arg):
+        'Run the three-down-one-up experiment: 3D1U_ST_Fixed reversals target_angle distance start_separation'
+        arg = arg.split()
+
+        if len(arg) != 4:
+            print("Error: see usage (hint: help three_down_one_up)")
+            return
+
+        try:
+            reversals = int(arg[0])
+            target_angle = float(arg[1])
+            dist = float(arg[2])
+            init_sep = float(arg[3])
+        except:
+            print("Parse Error: Enter valid values")
+            return
+
+        results = {
+            "Radial_Distance": [],
+            "Initial_Angle": [],
+            "Final_Angle": [],
+            "Separation": [],
+            "Direction": [],
+            "Recorded_Direction": [],
+            "Reversal": [],
+        }
+
+        # Variable step size
+        separations = []
+        while init_sep > 0.0:
+            separations.append(init_sep)
+            if init_sep > 10.0:
+                init_sep = init_sep - 5.0
+            elif init_sep > 4.0 and init_sep <= 10.0:
+                init_sep = init_sep - 3.0
+            else:
+                init_sep = (init_sep - 1.0)
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+
+        # State Variables
+        correctInaRow = 0
+        curr_reversals = 0
+        state = -1  # -1 -> down, +1 -> up
+        sep_idx = 0
+        sep = separations[sep_idx]
+
+        while curr_reversals != reversals:
+            self.pos_queue.clear()
+            self.input_queue.clear()
+
+            # Generate experiment
+            if self.IPAD_AVAILABLE:
+                expt = p.deterministic_two_source(
+                    1, target_angle, sep, dist, input_type='ipad')
+            else:
+                p.deterministic_two_source(
+                    1, target_angle, sep, dist, input_type='keyboard')
+
+            # Do experiment
+            cmds = expt.splitlines()
+            for _cmd in cmds:
+                self.onecmd(_cmd)
+
+            # For every input there should be two stored positions in queue
+            assert(2 * len(self.input_queue) == len(self.pos_queue))
+
+            # Calculate entries
+            recorded_dir = self.input_queue[0]
+            initial_pos = self.pos_queue[0]
+            final_pos = self.pos_queue[1]
+            distance = np.round(float(initial_pos.split('/')[0]), 2)
+            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+            actual_dir = "right" if (
+                final_angle - init_angle) >= 0 else "left"
+
+            # Store entries in a dict
+            results['Radial_Distance'].append(distance)
+            results['Initial_Angle'].append(init_angle)
+            results['Final_Angle'].append(final_angle)
+            results['Separation'].append(sep)
+            results['Direction'].append(actual_dir)
+            results["Recorded_Direction"].append(recorded_dir)
+            results["Reversal"].append('-')
+
+            # If correct Response
+            if recorded_dir == actual_dir:
+                correctInaRow += 1
+
+                if correctInaRow == 3:  # three down
+                    sep_idx = min(sep_idx + 1, (len(separations) - 1))
+                    sep = separations[sep_idx]
+                    correctInaRow = 0
+
+                    # If state previously stored is not down
+                    # Update state
+                    # Update reversal
+                    if state != -1:
+                        state = -1
+                        curr_reversals += 1
+                        results["Reversal"][-1] = '*'
+
+            # If incorrect Response
+            elif recorded_dir != actual_dir:  # one up
+                sep_idx = max(sep_idx - 1, 0)
+                sep = separations[sep_idx]
+                correctInaRow = 0
+
+                # If state previously stored is not up
+                # Update state
+                # Update reversal
+                if state != 1:
+                    state = 1
+                    curr_reversals += 1
+                    results["Reversal"][-1] = '*'
+
+        # Write results to text file
+        file_name = input('Enter .txt filename to write results to: ')
+        with open(file_name, 'w+'):
+            pass
+
+        df = pd.DataFrame(data=results)
+        with open(file_name, 'a') as f:
+            f.write(df.to_string())
+
+        print(f"SUCCESS: Saved results in {file_name}")
+
+        acc = np.mean([1 if a == b else 0 for a,
+                      b in zip(results["Recorded_Direction"], results['Direction'])])
+        print(f"Accuracy: {acc}\n")
+
+        # discard all but most recent position
+        self.pos_queue = self.pos_queue[-1:]
+        self.input_queue.clear()
+        return
+
+    def do_3D1U_FT_Random(self, arg):
+        'Run the three-down-one-up experiment: 3D1U_FT_Random runs lo_angle hi_angle distance start_separation'
+        arg = arg.split()
+
+        if len(arg) != 5:
+            print("Error: see usage (hint: help three_down_one_up)")
+            return
+
+        try:
+            runs = int(arg[0])
+            lo = float(arg[1])
+            hi = float(arg[2])
+            dist = float(arg[3])
+            init_sep = float(arg[4])
+        except:
+            print("Parse Error: Enter valid values")
+            return
+
+        results = {
+            "Radial_Distance": [],
+            "Initial_Angle": [],
+            "Final_Angle": [],
+            "Separation": [],
+            "Direction": [],
+            "Recorded_Direction": [],
+            "Reversal": [],
+        }
+
+        # Variable step size
+        separations = []
+        while init_sep > 0.0:
+            separations.append(init_sep)
+            if init_sep > 10.0:
+                init_sep = init_sep - 5.0
+            elif init_sep > 4.0 and init_sep <= 10.0:
+                init_sep = init_sep - 3.0
+            else:
+                init_sep = (init_sep - 1.0)
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+
+        # State Variables
+        correctInaRow = 0
+        curr_run = 0
+        curr_reversals = 0
+        state = -1  # -1 -> down, +1 -> up
+        sep_idx = 0
+        sep = separations[sep_idx]
+
+        while curr_run != runs:
+            self.pos_queue.clear()
+            self.input_queue.clear()
+
+            # Generate experiment
+            if self.IPAD_AVAILABLE:
+                expt = p.randomized_two_source(
+                    1, lo, hi, sep, dist, input_type='ipad')
+            else:
+                expt = p.randomized_two_source(
+                    1, lo, hi, sep, dist, input_type='keyboard')
+
+            # Do experiment
+            cmds = expt.splitlines()
+            for _cmd in cmds:
+                self.onecmd(_cmd)
+
+            # For every input there should be two stored positions in queue
+            assert(2 * len(self.input_queue) == len(self.pos_queue))
+
+            # Calculate entries
+            recorded_dir = self.input_queue[0]
+            initial_pos = self.pos_queue[0]
+            final_pos = self.pos_queue[1]
+            distance = np.round(float(initial_pos.split('/')[0]), 2)
+            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+            actual_dir = "right" if (
+                final_angle - init_angle) >= 0 else "left"
+
+            # Store entries in a dict
+            results['Radial_Distance'].append(distance)
+            results['Initial_Angle'].append(init_angle)
+            results['Final_Angle'].append(final_angle)
+            results['Separation'].append(sep)
+            results['Direction'].append(actual_dir)
+            results["Recorded_Direction"].append(recorded_dir)
+            results["Reversal"].append('-')
+
+            # If correct Response
+            if recorded_dir == actual_dir:
+                correctInaRow += 1
+
+                if correctInaRow == 3:  # three down
+                    sep_idx = min(sep_idx + 1, (len(separations) - 1))
+                    sep = separations[sep_idx]
+                    correctInaRow = 0
+
+                    # If state previously stored is not down
+                    # Update state
+                    # Update reversal
+                    if state != -1:
+                        state = -1
+                        curr_reversals += 1
+                        results["Reversal"][-1] = '*'
+
+            # If incorrect Response
+            elif recorded_dir != actual_dir:  # one up
+                sep_idx = max(sep_idx - 1, 0)
+                sep = separations[sep_idx]
+                correctInaRow = 0
+
+                # If state previously stored is not up
+                # Update state
+                # Update reversal
+                if state != 1:
+                    state = 1
+                    curr_reversals += 1
+                    results["Reversal"][-1] = '*'
+
+            curr_run += 1
+
+        # Write results to text file
+        file_name = input('Enter .txt filename to write results to: ')
+        with open(file_name, 'w+'):
+            pass
+
+        df = pd.DataFrame(data=results)
+        with open(file_name, 'a') as f:
+            f.write(df.to_string())
+
+        print(f"SUCCESS: Saved results in {file_name}")
+
+        acc = np.mean([1 if a == b else 0 for a,
+                      b in zip(results["Recorded_Direction"], results['Direction'])])
+        print(f"Accuracy: {acc}\n")
+
+        # discard all but most recent position
+        self.pos_queue = self.pos_queue[-1:]
+        self.input_queue.clear()
+        return
+
+    def do_3D1U_FT_Fixed(self, arg):
+        'Run the three-down-one-up experiment: 3D1U_FT_Fixed runs target_angle distance start_separation'
+        arg = arg.split()
+
+        if len(arg) != 4:
+            print("Error: see usage (hint: help three_down_one_up)")
+            return
+
+        try:
+            runs = int(arg[0])
+            target_angle = float(arg[1])
+            dist = float(arg[2])
+            init_sep = float(arg[3])
+        except:
+            print("Parse Error: Enter valid values")
+            return
+
+        results = {
+            "Radial_Distance": [],
+            "Initial_Angle": [],
+            "Final_Angle": [],
+            "Separation": [],
+            "Direction": [],
+            "Recorded_Direction": [],
+            "Reversal": [],
+        }
+
+        # Variable step size
+        separations = []
+        while init_sep > 0.0:
+            separations.append(init_sep)
+            if init_sep > 10.0:
+                init_sep = init_sep - 5.0
+            elif init_sep > 4.0 and init_sep <= 10.0:
+                init_sep = init_sep - 3.0
+            else:
+                init_sep = (init_sep - 1.0)
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+
+        # State Variables
+        correctInaRow = 0
+        curr_run = 0
+        curr_reversals = 0
+        state = -1  # -1 -> down, +1 -> up
+        sep_idx = 0
+        sep = separations[sep_idx]
+
+        while curr_run != runs:
+            self.pos_queue.clear()
+            self.input_queue.clear()
+
+            # Generate experiment
+            if self.IPAD_AVAILABLE:
+                expt = p.deterministic_two_source(
+                    1, target_angle, sep, dist, input_type='ipad')
+            else:
+                p.deterministic_two_source(
+                    1, target_angle, sep, dist, input_type='keyboard')
+
+            # Do experiment
+            cmds = expt.splitlines()
+            for _cmd in cmds:
+                self.onecmd(_cmd)
+
+            # For every input there should be two stored positions in queue
+            assert(2 * len(self.input_queue) == len(self.pos_queue))
+
+            # Calculate entries
+            recorded_dir = self.input_queue[0]
+            initial_pos = self.pos_queue[0]
+            final_pos = self.pos_queue[1]
+            distance = np.round(float(initial_pos.split('/')[0]), 2)
+            init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+            final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+            actual_dir = "right" if (
+                final_angle - init_angle) >= 0 else "left"
+
+            # Store entries in a dict
+            results['Radial_Distance'].append(distance)
+            results['Initial_Angle'].append(init_angle)
+            results['Final_Angle'].append(final_angle)
+            results['Separation'].append(sep)
+            results['Direction'].append(actual_dir)
+            results["Recorded_Direction"].append(recorded_dir)
+            results["Reversal"].append('-')
+
+            # If correct Response
+            if recorded_dir == actual_dir:
+                correctInaRow += 1
+
+                if correctInaRow == 3:  # three down
+                    sep_idx = min(sep_idx + 1, (len(separations) - 1))
+                    sep = separations[sep_idx]
+                    correctInaRow = 0
+
+                    # If state previously stored is not down
+                    # Update state
+                    # Update reversal
+                    if state != -1:
+                        state = -1
+                        curr_reversals += 1
+                        results["Reversal"][-1] = '*'
+
+            # If incorrect Response
+            elif recorded_dir != actual_dir:  # one up
+                sep_idx = max(sep_idx - 1, 0)
+                sep = separations[sep_idx]
+                correctInaRow = 0
+
+                # If state previously stored is not up
+                # Update state
+                # Update reversal
+                if state != 1:
+                    state = 1
+                    curr_reversals += 1
+                    results["Reversal"][-1] = '*'
+
+            curr_run += 1
+
+        # Write results to text file
+        file_name = input('Enter .txt filename to write results to: ')
+        with open(file_name, 'w+'):
+            pass
+
+        df = pd.DataFrame(data=results)
+        with open(file_name, 'a') as f:
+            f.write(df.to_string())
+
+        print(f"SUCCESS: Saved results in {file_name}")
+
+        acc = np.mean([1 if a == b else 0 for a,
+                      b in zip(results["Recorded_Direction"], results['Direction'])])
+        print(f"Accuracy: {acc}\n")
+
+        # discard all but most recent position
+        self.pos_queue = self.pos_queue[-1:]
+        self.input_queue.clear()
+        return
+
+    def do_3D1U_Interleaved(self, arg):
+        'Run the three-down-one-up experiment: 3D1U_Interleaved runs soundfile0 soundfile1 ...'
+
+        arg = arg.split()
+
+        if len(arg) < 3:
+            print("Error: see usage (hint: help three_down_one_up)")
+            return
+
+        try:
+            runs = int(arg[0])
+            soundfiles = arg[1:]
+        except:
+            print("Parse Error: Enter valid values")
+            return
+
+        state_dict = {}
+        for sf in soundfiles:
+            state_dict[sf] = {}
+
+            params = input(
+                f'Enter target_angle(f) distance(f) start_separation(f) for {sf}: ')
+            params = params.split()
+
+            try:
+                state_dict[sf]['target_angle'] = float(params[0])
+                state_dict[sf]['dist'] = float(params[1])
+                init_sep = float(arg[2])
+                state_dict[sf]['separations'] = []
+
+                # Variable step size
+                while init_sep > 0.0:
+                    state_dict[sf]['separations'].append(init_sep)
+                    if init_sep > 10.0:
+                        init_sep = init_sep - 5.0
+                    elif init_sep > 4.0 and init_sep <= 10.0:
+                        init_sep = init_sep - 3.0
+                    else:
+                        init_sep = (init_sep - 1.0)
+                state_dict[sf]['correctInaRow'] = 0
+                state_dict[sf]['curr_run'] = 0
+                state_dict[sf]['curr_reversals'] = 0
+                state_dict[sf]['state'] = -1  # -1 -> down, +1 -> up
+                state_dict[sf]['sep_idx'] = 0
+                state_dict[sf]['sep'] = state_dict[sf]['separations'][state_dict[sf]['sep_idx']]
+                state_dict[sf]['results'] = {
+                    "Radial_Distance": [],
+                    "Initial_Angle": [],
+                    "Final_Angle": [],
+                    "Separation": [],
+                    "Direction": [],
+                    "Recorded_Direction": [],
+                    "Reversal": [],
+                }
+            except:
+                print("Parse Error: Enter valid values")
+                return
+
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+
+        curr_run = 0
+        while curr_run != runs:
+
+            for sf in state_dict.keys():
+
+                self.pos_queue.clear()
+                self.input_queue.clear()
+
+                # Generate experiment
+                if self.IPAD_AVAILABLE:
+                    expt = p.deterministic_two_source(
+                        1, state_dict[sf]['target_angle'], state_dict[sf]['sep'], state_dict[sf]['dist'], input_type='ipad', filename=sf)
+                else:
+                    p.deterministic_two_source(
+                        1, state_dict[sf]['target_angle'], state_dict[sf]['sep'], state_dict[sf]['dist'], input_type='keyboard', filename=sf)
+
+                # Do experiment
+                cmds = expt.splitlines()
+                for _cmd in cmds:
+                    self.onecmd(_cmd)
+
+                # For every input there should be two stored positions in queue
+                assert(2 * len(self.input_queue) == len(self.pos_queue))
+
+                # Calculate entries
+                recorded_dir = self.input_queue[0]
+                initial_pos = self.pos_queue[0]
+                final_pos = self.pos_queue[1]
+                distance = np.round(float(initial_pos.split('/')[0]), 2)
+                init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
+                final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+                actual_dir = "right" if (
+                    final_angle - init_angle) >= 0 else "left"
+
+                # Store entries in a dict
+                state_dict[sf]['results']['Radial_Distance'].append(distance)
+                state_dict[sf]['results']['Initial_Angle'].append(init_angle)
+                state_dict[sf]['results']['Final_Angle'].append(final_angle)
+                state_dict[sf]['results']['Separation'].append(sep)
+                state_dict[sf]['results']['Direction'].append(actual_dir)
+                state_dict[sf]['results']["Recorded_Direction"].append(
+                    recorded_dir)
+                state_dict[sf]['results']["Reversal"].append('-')
+
+                # If correct Response
+                if recorded_dir == actual_dir:
+                    state_dict[sf]['correctInaRow'] += 1
+
+                    if state_dict[sf]['correctInaRow'] == 3:  # three down
+                        state_dict[sf]['sep_idx'] = min(
+                            state_dict[sf]['sep_idx'] + 1, (len(state_dict[sf]['separations']) - 1))
+                        state_dict[sf]['sep'] = state_dict[sf]['separations'][state_dict[sf]['sep_idx']]
+                        state_dict[sf]['correctInaRow'] = 0
+
+                        # If state previously stored is not down
+                        # Update state
+                        # Update reversal
+                        if state_dict[sf]['state'] != -1:
+                            state_dict[sf]['state'] = -1
+                            state_dict[sf]['curr_reversals'] += 1
+                            state_dict[sf]['results']["Reversal"][-1] = '*'
+
+                # If incorrect Response
+                elif recorded_dir != actual_dir:  # one up
+                    state_dict[sf]['sep_idx'] = max(
+                        state_dict[sf]['sep_idx'] - 1, 0)
+                    state_dict[sf]['sep'] = state_dict[sf]['separations'][state_dict[sf]['sep_idx']]
+                    state_dict[sf]['correctInaRow'] = 0
+
+                    # If state previously stored is not up
+                    # Update state
+                    # Update reversal
+                    if state_dict[sf]['state'] != 1:
+                        state_dict[sf]['state'] = 1
+                        state_dict[sf]['curr_reversals'] += 1
+                        state_dict[sf]['results']["Reversal"]["Reversal"][-1] = '*'
+
+            curr_run += 1
+
+        for sf in state_dict.keys():
+            # Write results to text file
+            file_name = input(
+                f'Enter .txt filename to write results for {sf}: ')
+            with open(file_name, 'w+'):
+                pass
+
+            df = pd.DataFrame(data=state_dict[sf]['results'])
+            with open(file_name, 'a') as f:
+                f.write(df.to_string())
+
+            print(f"SUCCESS: Saved results in {file_name}")
+
+            acc = np.mean([1 if a == b else 0 for a,
+                          b in zip(state_dict[sf]['results']["Recorded_Direction"], state_dict[sf]['results']['Direction'])])
+            print(f"Accuracy: {acc}\n")
 
         # discard all but most recent position
         self.pos_queue = self.pos_queue[-1:]

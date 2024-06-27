@@ -28,6 +28,10 @@ class PresetGenerator:
         cmd = "key_user_input\n"
         self.cmdqueue.put(cmd)
 
+    def test_signal(self, filename):
+        cmd = f"test_signal {filename}\n"
+        self.cmdqueue.put(cmd)
+
     def play(self):
         cmd = "play\n"
         self.cmdqueue.put(cmd)
@@ -77,6 +81,28 @@ class PresetGenerator:
             angle2 = np.minimum(hi, np.maximum(angle2, lo))
             angle2 = angle1 - choice * \
                 sep if abs(angle1-angle2) != sep else angle2
+
+            self.set_pos(1, angle1, dist)
+            self.play()
+            self.set_pos(1, angle2, dist)
+            self.play()
+            input_fn()
+
+        return self.write_to_str()
+
+    def deterministic_two_source(self, runs, target_angle, sep, dist, input_type='keyboard', filename=None):
+        if input_type == 'keyboard':
+            input_fn = self.key_user_input
+        elif input_type == 'ipad':
+            input_fn = self.ipad_user_input
+
+        for run in range(runs):
+            rand = -1 if np.random.randint(2) == 0 else 1  # 1 or -1
+            angle1 = target_angle + rand * (sep / 2)
+            angle2 = target_angle - rand * (sep / 2)
+
+            if filename is not None:
+                self.test_signal(filename)
 
             self.set_pos(1, angle1, dist)
             self.play()
