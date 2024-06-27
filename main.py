@@ -883,7 +883,7 @@ class ExptShell(cmd.Cmd):
                 expt = p.deterministic_two_source(
                     1, target_angle, sep, dist, input_type='ipad')
             else:
-                p.deterministic_two_source(
+                expt = p.deterministic_two_source(
                     1, target_angle, sep, dist, input_type='keyboard')
 
             # Do experiment
@@ -1162,7 +1162,7 @@ class ExptShell(cmd.Cmd):
                 expt = p.deterministic_two_source(
                     1, target_angle, sep, dist, input_type='ipad')
             else:
-                p.deterministic_two_source(
+                expt = p.deterministic_two_source(
                     1, target_angle, sep, dist, input_type='keyboard')
 
             # Do experiment
