@@ -1272,7 +1272,7 @@ class ExptShell(cmd.Cmd):
             try:
                 state_dict[sf]['target_angle'] = float(params[0])
                 state_dict[sf]['dist'] = float(params[1])
-                init_sep = float(arg[2])
+                init_sep = float(params[2])
                 state_dict[sf]['separations'] = []
 
                 # Variable step size
@@ -1319,7 +1319,7 @@ class ExptShell(cmd.Cmd):
                     expt = p.deterministic_two_source(
                         1, state_dict[sf]['target_angle'], state_dict[sf]['sep'], state_dict[sf]['dist'], input_type='ipad', filename=sf)
                 else:
-                    p.deterministic_two_source(
+                    expt = p.deterministic_two_source(
                         1, state_dict[sf]['target_angle'], state_dict[sf]['sep'], state_dict[sf]['dist'], input_type='keyboard', filename=sf)
 
                 # Do experiment
@@ -1344,7 +1344,7 @@ class ExptShell(cmd.Cmd):
                 state_dict[sf]['results']['Radial_Distance'].append(distance)
                 state_dict[sf]['results']['Initial_Angle'].append(init_angle)
                 state_dict[sf]['results']['Final_Angle'].append(final_angle)
-                state_dict[sf]['results']['Separation'].append(sep)
+                state_dict[sf]['results']['Separation'].append(state_dict[sf]['sep'])
                 state_dict[sf]['results']['Direction'].append(actual_dir)
                 state_dict[sf]['results']["Recorded_Direction"].append(
                     recorded_dir)
@@ -1381,7 +1381,7 @@ class ExptShell(cmd.Cmd):
                     if state_dict[sf]['state'] != 1:
                         state_dict[sf]['state'] = 1
                         state_dict[sf]['curr_reversals'] += 1
-                        state_dict[sf]['results']["Reversal"]["Reversal"][-1] = '*'
+                        state_dict[sf]['results']["Reversal"][-1] = '*'
 
             curr_run += 1
 
