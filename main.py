@@ -1299,7 +1299,8 @@ class ExptShell(cmd.Cmd):
                     "Recorded_Direction": [],
                     "Reversal": [],
                 }
-            except:
+            except Exception as e:
+                print(str(e))
                 print("Parse Error: Enter valid values")
                 return
 
