@@ -7,12 +7,20 @@
 #include <OSCData.h>
 #include <esp_wifi.h>
 
-char ssid[] = "100A";
-char pass[] = "PittsburghPZM";
+// char ssid[] = "CMU-DEVICE";
+// char pass[] = "PittsburghPZM";
+char ssid[] = "sound-hologram";
+char pass[] = "spatial_";
 
 WiFiUDP Udp;
 const unsigned int recive_port = 1342;
 const unsigned int LED_PIN = 15;
+
+// Define Static IP addr, gatewat and subnet_mask
+// Usable range : 172.16.1.[1..254]
+IPAddress local_IP(172, 16, 1, 1);
+IPAddress gateway(172, 16, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
 
 OSCErrorCode error;
 unsigned int ledState = LOW; // LOW means led is *on*
@@ -40,25 +48,22 @@ void setup()
 
   Serial.begin(115200);
 
-  // Connect to WiFi network
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, pass);
-  // WiFi.begin(ssid);
-
-  while (WiFi.status() != WL_CONNECTED)
+  // Set ESP32 as an access point
+  Serial.println("Configuring access point...");
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  if (!WiFi.softAP(ssid, pass))
   {
-    delay(500);
-    Serial.print(".");
+    log_e("Soft AP creation failed.");
+    while (1)
+      ;
   }
-  Serial.println("");
 
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  // Print IP addr
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(myIP);
 
+  // Start UDP
   Serial.println("Starting UDP");
   Udp.begin(recive_port);
   Serial.print("Recieve port: ");
