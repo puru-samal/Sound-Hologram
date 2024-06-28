@@ -15,22 +15,14 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
 * config.py            
   - Helper file that uses config-init and creates config.txt at runtime.
   
-* cross_corr.py            
-  - Helper file to calculate cross-correlation between channels in a stereo audio file.
-  - A parabolic interpolator is used to estimate true peak location.
+* utils.py    
+  - Collection of helper functions.
 
-* doa.py            
-  - Helper file to run two mic DOA estimation and plot results.
-  
 * main.py              
   - The main experiment shell that handles client-server interaction with wfs.maxpat
 
 * preset_generator.py
   - Script to generate text files with sequence of commands to run experiments. 
-  
-* speaker-calibrate.py 
-  - An experiment shell that interfaces directly with the speakers.
-  - Used to play-record test signals for speaker amplitude calibration.
   
 * test_signal.py       
   - A helper file to generate test signals. 
@@ -41,7 +33,6 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
   - Also implements simultaneous playback-recording.
   - Controlled by main.py.
   
-
 # OSC Addresses
 * `/playback-file`         | fmt: `,s`    | filename
 * `/record-file`           | fmt: `,s`    | filename
@@ -51,6 +42,7 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
 * `/init-spat/preset/load` | fmt: `,s`    | filename
 * `/max/conn`              | fmt: `,i`    | 1 or 0   
 * `/speaker-ch`            | fmt: `,ii..` | List of ints representing active speakers
+
 # Usage
 ## main.py
 ### Commands
@@ -133,18 +125,59 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
       - rec_dur          (int) : Duration (in ms) to record for
       - rec_dir          (str) : Directory to record the files to
 
-* `three_down_one_up reversals lo_angle hi_angle dist start_separation`
-  - Runs the sequence of commands for the three_down_one_up experiment.
+* `3D1U_ST_Random reversals lo_angle hi_angle dist start_separation`
+  - Runs the sequence of commands for a variant of the three_down_one_up experiment.
     - Arguments: 
       - reversals           (int) : Number of reversals before termination
       - lo_angle          (float) : Lower angle range in degrees
       - hi_angle          (float) : Upper angle range in degrees
       - dist              (float) : Ratio of the source. Is multiplied by YM
       - start_separation  (float) : The initial separation between two sources
+      
+* `3D1U_FT_Random runs lo_angle hi_angle dist start_separation`
+  - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+    - Arguments: 
+      - runs                (int) : Number of runs before termination
+      - lo_angle          (float) : Lower angle range in degrees
+      - hi_angle          (float) : Upper angle range in degrees
+      - dist              (float) : Ratio of the source. Is multiplied by YM
+      - start_separation  (float) : The initial separation between two sources
+
+* `3D1U_ST_Fixed reversals target_angle dist start_separation`
+  - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+    - Arguments: 
+      - reversals           (int) : Number of reversals before termination
+      - target_angle      (float) : Angle around which the two sources will be separated around.
+      - dist              (float) : Ratio of the source. Is multiplied by YM
+      - start_separation  (float) : The initial separation between two sources
+
+* `3D1U_FT_Fixed runs target_angle dist start_separation`
+  - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+    - Arguments: 
+      - runs                (int) : Number of runs before termination
+      - target_angle      (float) : Angle around which the two sources will be separated around.
+      - dist              (float) : Ratio of the source. Is multiplied by YM
+      - start_separation  (float) : The initial separation between two sources
+
+* `3D1U_Interleaved runs soundfile0 soundfile1 ..`
+  - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+    - Arguments: 
+      - runs                (int) : Number of runs before termination
+      - list of soundfiles  (str) : Space separated list of soundfiles
      
 * `quit` 
   - Quits the shell
-
+  
+### 3D1U Variants
+* Self-Terminating (ST) refers to when a track terminates after a user-specified number of reversals.
+* Fixed-Trial refers to when a track terminates after a user-specified number of trials. 
+* Random-interval refers to when the two source locations in a trial are sampled randomly 
+  within the user-specified interval. The separation is determined by their performance in 3D1U. 
+  The order of playback (right-left, left-right) is random. 
+* Fixed-interval refers to when the target angle is user-specified and fixed throughout the 
+  duration of a track. The two source locations in a trial are separated around the target angle. 
+  The separation is determined by their performance in 3D1U. 
+  The order of playback (right-left, left-right) is random. 
 
 ### Example usage (Make sure wfs.maxpat is open!)
 ```

@@ -886,6 +886,7 @@ class ExptShell(cmd.Cmd):
                 expt = p.deterministic_two_source(
                     1, target_angle, sep, dist, input_type='keyboard')
 
+            print(expt)
             # Do experiment
             cmds = expt.splitlines()
             for _cmd in cmds:
@@ -1106,7 +1107,7 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_3D1U_FT_Fixed(self, arg):
-        'Run the three-down-one-up experiment: 3D1U_FT_Fixed runs target_angle distance start_separation'
+        'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed runs target_angle distance start_separation'
         arg = arg.split()
 
         if len(arg) != 4:
@@ -1344,7 +1345,8 @@ class ExptShell(cmd.Cmd):
                 state_dict[sf]['results']['Radial_Distance'].append(distance)
                 state_dict[sf]['results']['Initial_Angle'].append(init_angle)
                 state_dict[sf]['results']['Final_Angle'].append(final_angle)
-                state_dict[sf]['results']['Separation'].append(state_dict[sf]['sep'])
+                state_dict[sf]['results']['Separation'].append(
+                    state_dict[sf]['sep'])
                 state_dict[sf]['results']['Direction'].append(actual_dir)
                 state_dict[sf]['results']["Recorded_Direction"].append(
                     recorded_dir)

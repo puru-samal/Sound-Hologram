@@ -101,8 +101,8 @@ class PresetGenerator:
             angle1 = target_angle + rand * (sep / 2)
             angle2 = target_angle - rand * (sep / 2)
 
-            if filename is not None:
-                self.test_signal(filename)
+            # if filename is not None:
+            #    self.test_signal(filename)
 
             self.set_pos(1, angle1, dist)
             self.play()
