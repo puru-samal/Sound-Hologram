@@ -20,10 +20,10 @@ from pathlib import Path
 import pandas as pd
 import queue
 import socket
+import psutil
 from scipy.io import wavfile
 import scipy.signal as sps
 import utils
-
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -137,6 +137,24 @@ class ExptShell(cmd.Cmd):
         # Send Message to Max
         msg = oscbuildparse.OSCMessage("/max/conn", ",s", ["Sent"])
         osc_send(msg, self.CLIENT)
+    
+    def get_ip_addr(self, interface_name='en1'):
+        try:
+            addrs = psutil.net_if_addrs()
+            
+            if interface_name in addrs:
+                for addr in addrs[interface_name]:
+                    if addr.family == socket.AF_INET:
+                        return addr.address
+                    else:
+                        return None
+            else:
+                print(f"{interface_name} not found.")
+                return None
+        
+        except Exception as e:
+            print(f'Error {e}')
+            return None
 
     ############################
     ####    Dummy CMDs      ####
@@ -210,8 +228,9 @@ class ExptShell(cmd.Cmd):
             ipad_input = input("Use iPad input? [y/n]: ")
 
             if ipad_input.lower() == 'y':
-                hostname = socket.gethostname()
-                self.WIFI_SERVER_IP = socket.gethostbyname(hostname)
+                #hostname = socket.gethostname()
+                #self.WIFI_SERVER_IP = socket.gethostbyname(hostname)
+                self.WIFI_SERVER_IP = self.get_ip_addr(interface_name='en1')
 
                 # Initialize Server
                 osc_udp_server(self.WIFI_SERVER_IP, self.WIFI_SERVER_PORT,

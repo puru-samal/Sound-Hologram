@@ -195,8 +195,8 @@
 									"maxclass" : "newobj",
 									"numinlets" : 1,
 									"numoutlets" : 0,
-									"patching_rect" : [ 50.0, 190.0, 158.0, 22.0 ],
-									"text" : "udpsend 172.26.128.1 1342"
+									"patching_rect" : [ 50.0, 190.0, 145.0, 22.0 ],
+									"text" : "udpsend 172.16.1.1 1342"
 								}
 
 							}
@@ -4313,7 +4313,8 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 680.5, 210.0, 143.0, 33.0 ],
 					"presentation" : 1,
-					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ]
+					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ],
+					"text" : "/play : 1"
 				}
 
 			}
