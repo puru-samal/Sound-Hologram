@@ -905,7 +905,6 @@ class ExptShell(cmd.Cmd):
                 expt = p.deterministic_two_source(
                     1, target_angle, sep, dist, input_type='keyboard')
 
-            print(expt)
             # Do experiment
             cmds = expt.splitlines()
             for _cmd in cmds:
