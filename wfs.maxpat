@@ -40,6 +40,21 @@
 		"assistshowspatchername" : 0,
 		"boxes" : [ 			{
 				"box" : 				{
+					"fontsize" : 10.0,
+					"id" : "obj-32",
+					"maxclass" : "comment",
+					"numinlets" : 1,
+					"numoutlets" : 0,
+					"patching_rect" : [ 520.5, 960.0, 127.0, 18.0 ],
+					"presentation" : 1,
+					"presentation_rect" : [ 195.0, 849.0, 120.0, 18.0 ],
+					"style" : "rnbomonokai",
+					"text" : "LED state (click to reset)"
+				}
+
+			}
+, 			{
+				"box" : 				{
 					"id" : "obj-66",
 					"maxclass" : "newobj",
 					"numinlets" : 2,
@@ -122,13 +137,23 @@
 			}
 , 			{
 				"box" : 				{
+					"bgcolor" : [ 1.0, 0.345098039215686, 0.298039215686275, 1.0 ],
 					"id" : "obj-36",
 					"maxclass" : "toggle",
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "int" ],
 					"parameter_enable" : 0,
-					"patching_rect" : [ 773.5, 315.0, 24.0, 24.0 ]
+					"patching_rect" : [ 773.5, 315.0, 24.0, 24.0 ],
+					"presentation" : 1,
+					"presentation_rect" : [ 165.0, 846.0, 24.0, 24.0 ],
+					"saved_attribute_attributes" : 					{
+						"bgcolor" : 						{
+							"expression" : "themecolor.live_active_automation"
+						}
+
+					}
+
 				}
 
 			}
