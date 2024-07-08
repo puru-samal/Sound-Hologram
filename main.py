@@ -137,11 +137,11 @@ class ExptShell(cmd.Cmd):
         # Send Message to Max
         msg = oscbuildparse.OSCMessage("/max/conn", ",s", ["Sent"])
         osc_send(msg, self.CLIENT)
-    
+
     def get_ip_addr(self, interface_name='en1'):
         try:
             addrs = psutil.net_if_addrs()
-            
+
             if interface_name in addrs:
                 for addr in addrs[interface_name]:
                     if addr.family == socket.AF_INET:
@@ -151,10 +151,23 @@ class ExptShell(cmd.Cmd):
             else:
                 print(f"{interface_name} not found.")
                 return None
-        
+
         except Exception as e:
             print(f'Error {e}')
             return None
+
+    def get_separations(self, ranges, step_sizes):
+        i = 0
+        j = 1
+        separations = [ranges[i]]
+        while j < len(ranges):
+            sep = separations[-1] - step_sizes[i]
+            separations.append(sep)
+            if sep <= ranges[j]:
+                i += 1
+                j += 1
+
+        return separations
 
     ############################
     ####    Dummy CMDs      ####
@@ -709,10 +722,10 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_3D1U_ST_Random(self, arg):
-        'Run the three-down-one-up experiment: 3D1U_ST_Random reversals lo_angle hi_angle distance start_separation'
+        'Run the three-down-one-up experiment: 3D1U_ST_Random reversals lo_angle hi_angle distance'
         arg = arg.split()
 
-        if len(arg) != 5:
+        if len(arg) != 4:
             print("Error: see usage (hint: help three_down_one_up)")
             return
 
@@ -721,9 +734,13 @@ class ExptShell(cmd.Cmd):
             lo = float(arg[1])
             hi = float(arg[2])
             dist = float(arg[3])
-            init_sep = float(arg[4])
-        except:
-            print("Parse Error: Enter valid values")
+            ranges = input("Enter ranges: ")
+            ranges = [float(elem) for elem in ranges.split()]
+            step_sizes = input("Enter step sizes: ")
+            step_sizes = [float(elem) for elem in step_sizes.split()]
+            separations = self.get_separations(ranges, step_sizes)
+        except Exception as e:
+            print(str(e))
             return
 
         results = {
@@ -735,17 +752,6 @@ class ExptShell(cmd.Cmd):
             "Recorded_Direction": [],
             "Reversal": [],
         }
-
-        # Variable step size
-        separations = []
-        while init_sep > 0.0:
-            separations.append(init_sep)
-            if init_sep > 10.0:
-                init_sep = init_sep - 5.0
-            elif init_sep > 4.0 and init_sep <= 10.0:
-                init_sep = init_sep - 3.0
-            else:
-                init_sep = (init_sep - 1.0)
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
 
@@ -847,10 +853,10 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_3D1U_ST_Fixed(self, arg):
-        'Run the three-down-one-up experiment: 3D1U_ST_Fixed reversals target_angle distance start_separation'
+        'Run the three-down-one-up experiment: 3D1U_ST_Fixed reversals target_angle distance'
         arg = arg.split()
 
-        if len(arg) != 4:
+        if len(arg) != 3:
             print("Error: see usage (hint: help three_down_one_up)")
             return
 
@@ -858,7 +864,11 @@ class ExptShell(cmd.Cmd):
             reversals = int(arg[0])
             target_angle = float(arg[1])
             dist = float(arg[2])
-            init_sep = float(arg[3])
+            ranges = input("Enter ranges: ")
+            ranges = [float(elem) for elem in ranges.split()]
+            step_sizes = input("Enter step sizes: ")
+            step_sizes = [float(elem) for elem in step_sizes.split()]
+            separations = self.get_separations(ranges, step_sizes)
         except:
             print("Parse Error: Enter valid values")
             return
@@ -872,17 +882,6 @@ class ExptShell(cmd.Cmd):
             "Recorded_Direction": [],
             "Reversal": [],
         }
-
-        # Variable step size
-        separations = []
-        while init_sep > 0.0:
-            separations.append(init_sep)
-            if init_sep > 10.0:
-                init_sep = init_sep - 5.0
-            elif init_sep > 4.0 and init_sep <= 10.0:
-                init_sep = init_sep - 3.0
-            else:
-                init_sep = (init_sep - 1.0)
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
 
@@ -984,10 +983,10 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_3D1U_FT_Random(self, arg):
-        'Run the three-down-one-up experiment: 3D1U_FT_Random runs lo_angle hi_angle distance start_separation'
+        'Run the three-down-one-up experiment: 3D1U_FT_Random runs lo_angle hi_angle distance'
         arg = arg.split()
 
-        if len(arg) != 5:
+        if len(arg) != 4:
             print("Error: see usage (hint: help three_down_one_up)")
             return
 
@@ -996,7 +995,11 @@ class ExptShell(cmd.Cmd):
             lo = float(arg[1])
             hi = float(arg[2])
             dist = float(arg[3])
-            init_sep = float(arg[4])
+            ranges = input("Enter ranges: ")
+            ranges = [float(elem) for elem in ranges.split()]
+            step_sizes = input("Enter step sizes: ")
+            step_sizes = [float(elem) for elem in step_sizes.split()]
+            separations = self.get_separations(ranges, step_sizes)
         except:
             print("Parse Error: Enter valid values")
             return
@@ -1010,17 +1013,6 @@ class ExptShell(cmd.Cmd):
             "Recorded_Direction": [],
             "Reversal": [],
         }
-
-        # Variable step size
-        separations = []
-        while init_sep > 0.0:
-            separations.append(init_sep)
-            if init_sep > 10.0:
-                init_sep = init_sep - 5.0
-            elif init_sep > 4.0 and init_sep <= 10.0:
-                init_sep = init_sep - 3.0
-            else:
-                init_sep = (init_sep - 1.0)
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
 
@@ -1125,10 +1117,10 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_3D1U_FT_Fixed(self, arg):
-        'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed runs target_angle distance start_separation'
+        'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed runs target_angle distance'
         arg = arg.split()
 
-        if len(arg) != 4:
+        if len(arg) != 3:
             print("Error: see usage (hint: help three_down_one_up)")
             return
 
@@ -1136,7 +1128,11 @@ class ExptShell(cmd.Cmd):
             runs = int(arg[0])
             target_angle = float(arg[1])
             dist = float(arg[2])
-            init_sep = float(arg[3])
+            ranges = input("Enter ranges: ")
+            ranges = [float(elem) for elem in ranges.split()]
+            step_sizes = input("Enter step sizes: ")
+            step_sizes = [float(elem) for elem in step_sizes.split()]
+            separations = self.get_separations(ranges, step_sizes)
         except:
             print("Parse Error: Enter valid values")
             return
@@ -1150,17 +1146,6 @@ class ExptShell(cmd.Cmd):
             "Recorded_Direction": [],
             "Reversal": [],
         }
-
-        # Variable step size
-        separations = []
-        while init_sep > 0.0:
-            separations.append(init_sep)
-            if init_sep > 10.0:
-                init_sep = init_sep - 5.0
-            elif init_sep > 4.0 and init_sep <= 10.0:
-                init_sep = init_sep - 3.0
-            else:
-                init_sep = (init_sep - 1.0)
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
 
@@ -1285,24 +1270,18 @@ class ExptShell(cmd.Cmd):
             state_dict[sf] = {}
 
             params = input(
-                f'Enter target_angle(f) distance(f) start_separation(f) for {sf}: ')
+                f'Enter target_angle(f) distance(f) for {sf}: ')
             params = params.split()
 
             try:
                 state_dict[sf]['target_angle'] = float(params[0])
                 state_dict[sf]['dist'] = float(params[1])
-                init_sep = float(params[2])
-                state_dict[sf]['separations'] = []
-
-                # Variable step size
-                while init_sep > 0.0:
-                    state_dict[sf]['separations'].append(init_sep)
-                    if init_sep > 10.0:
-                        init_sep = init_sep - 5.0
-                    elif init_sep > 4.0 and init_sep <= 10.0:
-                        init_sep = init_sep - 3.0
-                    else:
-                        init_sep = (init_sep - 1.0)
+                ranges = input(f"Enter ranges for {sf}: ")
+                ranges = [float(elem) for elem in ranges.split()]
+                step_sizes = input(f"Enter step sizes for {sf}: ")
+                step_sizes = [float(elem) for elem in step_sizes.split()]
+                state_dict[sf]['separations'] = self.get_separations(
+                    ranges, step_sizes)
                 state_dict[sf]['correctInaRow'] = 0
                 state_dict[sf]['curr_run'] = 0
                 state_dict[sf]['curr_reversals'] = 0
