@@ -122,34 +122,40 @@ A repository of scripts and programs for the Sound-Hologram Project at CMU
       - rec_dur (int) : Duration (in ms) to record for
       - rec_dir (str) : Directory to record the files to
 
-- `3D1U_ST_Random reversals lo_angle hi_angle dist start_separation`
+- `3D1U_ST_Random reversals lo_angle hi_angle dist`
+
   - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+  - Will prompt for ranges and step-sizes to support variable step-sizes.
     - Arguments:
       - reversals (int) : Number of reversals before termination
       - lo_angle (float) : Lower angle range in degrees
       - hi_angle (float) : Upper angle range in degrees
       - dist (float) : Ratio of the source. Is multiplied by YM
       - start_separation (float) : The initial separation between two sources
+
 - `3D1U_FT_Random runs lo_angle hi_angle dist`
 
   - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+  - Will prompt for ranges and step-sizes to support variable step-sizes.
     - Arguments:
       - runs (int) : Number of runs before termination
       - lo_angle (float) : Lower angle range in degrees
       - hi_angle (float) : Upper angle range in degrees
       - dist (float) : Ratio of the source. Is multiplied by YM
 
-- `3D1U_ST_Fixed reversals target_angle dist start_separation`
+- `3D1U_ST_Fixed reversals target_angle dist`
 
   - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+  - Will prompt for ranges and step-sizes to support variable step-sizes.
     - Arguments:
       - reversals (int) : Number of reversals before termination
       - target_angle (float) : Angle around which the two sources will be separated around.
       - dist (float) : Ratio of the source. Is multiplied by YM
 
-- `3D1U_FT_Fixed runs target_angle dist start_separation`
+- `3D1U_FT_Fixed runs target_angle dist`
 
-  - Runs the sequence of commands for a variant of the three_down_one_up experiment.
+  - Runs the sequence of commands for a variant of the three_down_one_up experiment
+  - Will prompt for ranges and step-sizes to support variable step-sizes.
     - Arguments:
       - runs (int) : Number of runs before termination
       - target_angle (float) : Angle around which the two sources will be separated around.
