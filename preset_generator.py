@@ -47,6 +47,14 @@ class PresetGenerator:
     def mute(self, index):
         cmd = f"unmute {index}\n"
         self.cmdqueue.put(cmd)
+    
+    def loop(self, loop_state):
+        cmd = f"loop {loop_state}\n"
+        self.cmdqueue.put(cmd)
+
+    def num_loop(self, numreps):
+        cmd = f"num_loop {numreps}\n"
+        self.cmdqueue.put(cmd)
 
     def set_two_speaker(self, idx1, idx2):
         cmd = f"set_speaker {idx1} {idx2}\n"
@@ -67,7 +75,7 @@ class PresetGenerator:
             string += cmd
         return string
 
-    def randomized_two_source(self, runs, lo, hi, sep, dist, input_type='keyboard'):
+    def randomized_two_source(self, runs, lo, hi, sep, dist, repeat1 = 0, repeat2= 0, input_type='keyboard', filename=None):
         if input_type == 'keyboard':
             input_fn = self.key_user_input
         elif input_type == 'ipad':
@@ -82,15 +90,24 @@ class PresetGenerator:
             angle2 = angle1 - choice * \
                 sep if abs(angle1-angle2) != sep else angle2
 
+            if filename is not None:
+                self.test_signal(filename)
+
             self.set_pos(1, angle1, dist)
+            if repeat1 > 0:
+                self.num_loop(repeat1)
+                self.loop(1)     
             self.play()
             self.set_pos(1, angle2, dist)
+            if repeat2 > 0:
+                self.num_loop(repeat2)
+                self.loop(1)    
             self.play()
             input_fn()
 
         return self.write_to_str()
 
-    def deterministic_two_source(self, runs, target_angle, sep, dist, input_type='keyboard', filename=None):
+    def deterministic_two_source(self, runs, target_angle, sep, dist, repeat1=0, repeat2=0, input_type='keyboard', filename=None):
         if input_type == 'keyboard':
             input_fn = self.key_user_input
         elif input_type == 'ipad':
@@ -105,8 +122,14 @@ class PresetGenerator:
                 self.test_signal(filename)
 
             self.set_pos(1, angle1, dist)
+            if repeat1 > 0:
+                self.num_loop(repeat1)
+                self.loop(1)     
             self.play()
             self.set_pos(1, angle2, dist)
+            if repeat2 > 0:
+                self.num_loop(repeat2)
+                self.loop(1)    
             self.play()
             input_fn()
 
