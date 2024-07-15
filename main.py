@@ -105,7 +105,7 @@ class ExptShell(cmd.Cmd):
             logger.info("##### %d handler function called with: %r",
                         1, [addr, x])
 
-        self.msg_queue.put(addr)
+        self.msg_queue.put(f'{addr}#{x}')
 
     def ipad_conn(self, addr, x):
         if logger and logger.isEnabledFor(logging.INFO):
@@ -125,11 +125,12 @@ class ExptShell(cmd.Cmd):
 
     def block_until_recieved(self):
         item = self.msg_queue.get(block=True, timeout=None)
+        print(item)
         return item
 
     def check_conn_max(self):
         # Install message methods
-        osc_method("/max/conn", self.max_conn, argscheme=osm.OSCARG_ADDRESS +
+        osc_method("/max/*", self.max_conn, argscheme=osm.OSCARG_ADDRESS +
                    osm.OSCARG_DATAUNPACK)
         osc_method("/ipad/*", self.ipad_conn,
                    argscheme=osm.OSCARG_ADDRESS + osm.OSCARG_DATAUNPACK)
@@ -375,6 +376,28 @@ class ExptShell(cmd.Cmd):
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
         self.pos_queue.append(f'{dist}/{angle}')
+    
+    def do_query_tracker_pos(self, args):
+        pass
+
+    def do_set_sep(self, arg):
+        arg = arg.split()
+        try:
+            idx = int(arg[0])
+            sep = float(arg[1])
+        except:
+            print("Parse Error: Invalid Arguments")
+            return
+        
+        if len(self.pos_queue) > self.max_size:
+            self.pos_queue.clear()
+
+        msg = oscbuildparse.OSCMessage(
+            f"/set-sep/source/{idx}/sep", ",f", [sep])
+        osc_send(msg, self.CLIENT)
+        self.block_until_recieved()
+        self.pos_queue.append(f'-/{sep}')
+        pass
 
     def do_set_speaker(self, arg):
         'Set Active speaker: set_speaker speakeridx0 speakeridx1 ...'
@@ -762,7 +785,7 @@ class ExptShell(cmd.Cmd):
         print(f"SUCCESS: Saved results in {file_name}")
         return
 
-    def process_trial(self, trial, separations, track_state : dict, results : dict):
+    def process_trial(self, trial, separations, track_state : dict, results : dict, tracking=False):
         '''Helper funtion to run a trial in a 3D1U track.'''
         # Do experiment
         cmds = trial.splitlines()
@@ -776,15 +799,15 @@ class ExptShell(cmd.Cmd):
         recorded_dir = self.input_queue[0]
         initial_pos = self.pos_queue[0]
         final_pos = self.pos_queue[1]
-        distance = np.round(float(initial_pos.split('/')[0]), 2)
+        distance = np.round(float(initial_pos.split('/')[0]), 2) if not tracking else initial_pos.split('/')[0]
         init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
         final_angle = np.round(float(final_pos.split('/')[-1]), 2)
         actual_dir = "right" if (final_angle - init_angle) >= 0 else "left"
 
         # Store entries in a dict
         results['Radial_Distance'].append(distance)
-        results['Initial_Angle'].append(init_angle)
-        results['Final_Angle'].append(final_angle)
+        results['Initial_Angle'].append(init_angle if not tracking else f'trkr+{init_angle}')
+        results['Final_Angle'].append(final_angle if not tracking else f'trkr+{final_angle}')
         results['Separation'].append(track_state['sep'])
         results['Direction'].append(actual_dir)
         results["Recorded_Direction"].append(recorded_dir)

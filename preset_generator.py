@@ -19,6 +19,10 @@ class PresetGenerator:
     def set_pos(self, index, angle, distance):
         cmd = f"set_pos {index} {angle} {distance}\n"
         self.cmdqueue.put(cmd)
+    
+    def set_sep(self, index, separation):
+        cmd = f"set_sep {index} {separation}\n"
+        self.cmdqueue.put(cmd)
 
     def ipad_user_input(self):
         cmd = "ipad_user_input\n"
