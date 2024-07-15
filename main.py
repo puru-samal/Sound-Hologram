@@ -123,9 +123,10 @@ class ExptShell(cmd.Cmd):
     def close(self):
         osc_terminate()
 
-    def block_until_recieved(self):
+    def block_until_recieved(self, debug=False):
         item = self.msg_queue.get(block=True, timeout=None)
-        print(item)
+        if debug:
+            print(item)
         return item
 
     def check_conn_max(self):
@@ -376,6 +377,9 @@ class ExptShell(cmd.Cmd):
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
         self.pos_queue.append(f'{dist}/{angle}')
+    
+    def set_tracker_pos(self, args):
+        pass
     
     def do_query_tracker_pos(self, args):
         pass
