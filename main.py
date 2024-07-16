@@ -132,7 +132,7 @@ class ExptShell(cmd.Cmd):
     def check_conn_max(self):
         # Install message methods
         osc_method("/max/*", self.max_conn, argscheme=osm.OSCARG_ADDRESS +
-                   osm.OSCARG_DATAUNPACK)
+                   osm.OSCARG_DATA)
         osc_method("/ipad/*", self.ipad_conn,
                    argscheme=osm.OSCARG_ADDRESS + osm.OSCARG_DATAUNPACK)
 
@@ -378,13 +378,30 @@ class ExptShell(cmd.Cmd):
         self.block_until_recieved()
         self.pos_queue.append(f'{dist}/{angle}')
     
-    def set_tracker_pos(self, args):
-        pass
+    def do_set_tracking(self, arg):
+        'Activate/Deactivate motive tracking: set_tracking state[0/1]'
+        '1 activates tracking, 0 deactivates it'
+        arg = arg.split()
+        try:
+            tracker_state = int(arg[0])
+        except:
+            print("Parse Error: Invalid Arguments")
+            return
+
+        msg = oscbuildparse.OSCMessage(
+            f"/set-tracking", ",i", [tracker_state])
+        osc_send(msg, self.CLIENT)
+        self.block_until_recieved()
+        state = "activated" if tracker_state == 1 else "deactivated"
+        print(f"SUCCESS: Tracking {state}.")
+        return
     
     def do_query_tracker_pos(self, args):
         pass
 
-    def do_set_sep(self, arg):
+    def do_set_pos_rel_tracker(self, arg):
+        'Set source position relatice to tracker: set_pos_rel_tracker index separation'
+        'Tracking must be enabled'
         arg = arg.split()
         try:
             idx = int(arg[0])
@@ -397,10 +414,10 @@ class ExptShell(cmd.Cmd):
             self.pos_queue.clear()
 
         msg = oscbuildparse.OSCMessage(
-            f"/set-sep/source/{idx}/sep", ",f", [sep])
+            f"/set-source-rel-tracker/source/{idx}/sep", ",f", [sep])
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
-        self.pos_queue.append(f'-/{sep}')
+        self.pos_queue.append(f'trkd/{sep}')
         pass
 
     def do_set_speaker(self, arg):
@@ -430,7 +447,10 @@ class ExptShell(cmd.Cmd):
         'Plays all unmuted sources: play'
         print("Playing...")
         attr = self.pos_queue[-1].split('/')
-        print(f"\tSource: Dist:{attr[0]} | Angle:{attr[-1]}")
+        if attr[0] == 'trkd':
+            print(f"\tSource: Tracked with sep:{attr[-1]}")
+        else:   
+            print(f"\tSource: Dist:{attr[0]} | Angle:{attr[-1]}")
         # Playback
         msg = oscbuildparse.OSCMessage(
             "/play", ",i", [1])
@@ -803,7 +823,7 @@ class ExptShell(cmd.Cmd):
         recorded_dir = self.input_queue[0]
         initial_pos = self.pos_queue[0]
         final_pos = self.pos_queue[1]
-        distance = np.round(float(initial_pos.split('/')[0]), 2) if not tracking else initial_pos.split('/')[0]
+        distance = initial_pos.split('/')[0] if tracking else np.round(float(initial_pos.split('/')[0]), 2)
         init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
         final_angle = np.round(float(final_pos.split('/')[-1]), 2)
         actual_dir = "right" if (final_angle - init_angle) >= 0 else "left"
@@ -866,6 +886,17 @@ class ExptShell(cmd.Cmd):
         acc = np.mean([1 if a == b else 0 for a,
                       b in zip(results["Recorded_Direction"], results['Direction'])])
         print(f"Accuracy: {acc}\n")
+    
+    def return_to_defaults(self):
+        '''Helper function to return to default state'''
+        self.pos_queue.clear()
+        self.input_queue.clear()
+        p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        to_default_cmds = p.return_to_default()
+        cmds = to_default_cmds.splitlines()
+        for _cmd in cmds:
+            self.onecmd(_cmd)
+        return
 
 
     def do_3D1U_ST_Random(self, arg):
@@ -929,22 +960,26 @@ class ExptShell(cmd.Cmd):
             self.process_trial(trial, separations, track_state, results)
 
         self.process_results(results)
-        # discard all but most recent position
-        self.pos_queue = self.pos_queue[-1:]
-        self.input_queue.clear()
+        # Return to init state
+        self.return_to_defaults()
         return
     
     def do_3D1U_ST_Fixed(self, arg):
-        'Run the three-down-one-up experiment: 3D1U_ST_Fixed reversals target_angle distance'
+        'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed reversals target_angle distance'
+        'untracked version: 3D1U_FT_Fixed reversals target_angle distance'
+        'tracked version: 3D1U_FT_Fixed reversals'
         arg = arg.split()
-        if len(arg) != 3:
+        if not (len(arg) == 3 or len(arg) == 1):
             print("Error: see usage (hint: help 3D1U_ST_Fixed)")
             return
+        
+        tracking = len(arg) == 1
+
 
         try:
             reversals = int(arg[0])
-            target_angle = float(arg[1])
-            dist = float(arg[2])
+            target_angle = None if tracking else float(arg[1]) 
+            dist =  None if tracking else float(arg[2]) 
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
@@ -986,20 +1021,16 @@ class ExptShell(cmd.Cmd):
             self.input_queue.clear()
 
             # Generate experiment
-            if self.IPAD_AVAILABLE:
-                trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                                   input_type='ipad', repeat1=repeats1, repeat2=repeats2)
-            else:
-                trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                                   input_type='keyboard', repeat1=repeats1, repeat2=repeats2)
+            inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
+            trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
+                                               input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
 
-            self.process_trial(trial, separations, track_state, results)
+            self.process_trial(trial, separations, track_state, results, tracking=tracking)
 
         # Write results to text file
         self.process_results(results)
-        # discard all but most recent position
-        self.pos_queue = self.pos_queue[-1:]
-        self.input_queue.clear()
+        # Return to init state
+        self.return_to_defaults()
         return
     
     def do_3D1U_FT_Random(self, arg):
@@ -1055,33 +1086,33 @@ class ExptShell(cmd.Cmd):
             self.input_queue.clear()
 
             # Generate experiment
-            if self.IPAD_AVAILABLE:
-                trial = p.randomized_two_source(1, lo, hi, track_state['sep'], dist, 
-                                                input_type='ipad', repeat1=repeats1, repeat2=repeats2)
-            else:
-                trial = p.randomized_two_source(1, lo, hi, track_state['sep'], dist, 
-                                                input_type='keyboard', repeat1=repeats1, repeat2=repeats2)
+            inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
+            trial = p.randomized_two_source(1, lo, hi, track_state['sep'], dist, 
+                                            input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
 
             self.process_trial(trial, separations, track_state, results)
 
         # Write results to text file
         self.process_results(results)
-        # discard all but most recent position
-        self.pos_queue = self.pos_queue[-1:]
-        self.input_queue.clear()
+        # Return to init state
+        self.return_to_defaults()
         return
 
     def do_3D1U_FT_Fixed(self, arg):
         'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed runs target_angle distance'
+        'untracked version: 3D1U_FT_Fixed runs target_angle distance'
+        'tracked version: 3D1U_FT_Fixed runs'
         arg = arg.split()
-        if len(arg) != 3:
+        if not (len(arg) == 3 or len(arg) == 1):
             print("Error: see usage (hint: help 3D1U_FT_Fixed)")
             return
+        
+        tracking = len(arg) == 1
 
         try:
-            runs = int(arg[0])
-            target_angle = float(arg[1])
-            dist = float(arg[2])
+            runs = int(arg[0]) 
+            target_angle = None if tracking else float(arg[1]) 
+            dist =  None if tracking else float(arg[2]) 
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
@@ -1123,25 +1154,21 @@ class ExptShell(cmd.Cmd):
             self.input_queue.clear()
 
             # Generate experiment
-            if self.IPAD_AVAILABLE:
-                trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                                   input_type='ipad', repeat1=repeats1, repeat2=repeats2)
-            else:
-                trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                                   input_type='keyboard', repeat1=repeats1, repeat2=repeats2)
+            inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
+            trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
+                                                   input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
 
-            self.process_trial(trial, separations, track_state, results)
+            self.process_trial(trial, separations, track_state, results, tracking=tracking)
 
         # Write results to text file
         self.process_results(results)
 
-        # discard all but most recent position
-        self.pos_queue = self.pos_queue[-1:]
-        self.input_queue.clear()
+        # Return to init state
+        self.return_to_defaults()
         return
 
     def do_3D1U_Interleaved(self, arg):
-        'Run the three-down-one-up experiment: 3D1U_Interleaved runs soundfile0 soundfile1 ...'
+        'Run the interleaved three-down-one-up experiment: 3D1U_Interleaved runs soundfile0 soundfile1 ...'
 
         arg = arg.split()
         if len(arg) < 3:
@@ -1158,12 +1185,18 @@ class ExptShell(cmd.Cmd):
         for sf in soundfiles:
             state_dict[sf] = {}
             params = input(
-                f'Enter target_angle(f) distance(f) for {sf}: ')
+                f'Press enter if tracking else enter target_angle(f) distance(f) for {sf}: ')
             params = params.split()
 
+            if not (len(params) == 2 or len(params) == 0):
+                print("Error: see usage (hint: help 3D1U_Interleaved)")
+                return
+        
+            tracking = len(params) == 0
+
             try:
-                state_dict[sf]['target_angle'] = float(params[0])
-                state_dict[sf]['dist'] = float(params[1])
+                state_dict[sf]['target_angle'] = None if tracking else float(params[0])
+                state_dict[sf]['dist'] = None if tracking else float(params[1])
                 ranges = input(f"Enter ranges for {sf}: ")
                 ranges = [float(elem) for elem in ranges.split()]
                 step_sizes = input(f"Enter step sizes for {sf}: ")
@@ -1185,6 +1218,9 @@ class ExptShell(cmd.Cmd):
                 }
 
                 state_dict[sf]['track_state'] = {
+                    'repeats1': repeats1,
+                    'repeats2': repeats2,
+                    'tracking': tracking,
                     'correctInaRow' : 0,
                     'curr_reversals': 0,
                     'curr_run': 0,
@@ -1207,20 +1243,18 @@ class ExptShell(cmd.Cmd):
                 self.input_queue.clear()
 
                 # Generate experiment
-                if self.IPAD_AVAILABLE:
-                    trial = p.deterministic_two_source(1, state_dict[sf]['target_angle'], 
+                inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
+                trial = p.deterministic_two_source(1, state_dict[sf]['target_angle'], 
                                                        state_dict[sf]['track_state']['sep'], 
                                                        state_dict[sf]['dist'], 
-                                                       input_type='ipad', filename=sf,
-                                                       repeat1=repeats1, repeat2=repeats2)
-                else:
-                    trial = p.deterministic_two_source(1, state_dict[sf]['target_angle'], 
-                                                       state_dict[sf]['track_state']['sep'], 
-                                                       state_dict[sf]['dist'], 
-                                                       input_type='keyboard', filename=sf,
-                                                       repeat1=repeats1, repeat2=repeats2)
+                                                       input_type=inp_type, filename=sf,
+                                                       repeat1=state_dict[sf]['track_state']['repeats1'], 
+                                                       repeat2=state_dict[sf]['track_state']['repeats2'])
 
-                self.process_trial(trial, state_dict[sf]['separations'], state_dict[sf]['track_state'], state_dict[sf]['results'])
+               
+
+                self.process_trial(trial, state_dict[sf]['separations'], state_dict[sf]['track_state'], state_dict[sf]['results'],
+                                   tracking=state_dict[sf]['track_state']['tracking'])
             curr_run += 1
 
         for sf in state_dict.keys():
@@ -1228,9 +1262,8 @@ class ExptShell(cmd.Cmd):
             print(f"Processing {sf}...")
             self.process_results(state_dict[sf]['results'])
 
-        # discard all but most recent position
-        self.pos_queue = self.pos_queue[-1:]
-        self.input_queue.clear()
+        # Return to init state
+        self.return_to_defaults()
         return
 
 
