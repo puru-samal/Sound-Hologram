@@ -40,6 +40,30 @@
 		"assistshowspatchername" : 0,
 		"boxes" : [ 			{
 				"box" : 				{
+					"id" : "obj-54",
+					"maxclass" : "newobj",
+					"numinlets" : 2,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 675.0, 435.0, 57.0, 22.0 ],
+					"text" : "speedlim"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-7",
+					"maxclass" : "newobj",
+					"numinlets" : 2,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 615.0, 510.0, 57.0, 22.0 ],
+					"text" : "speedlim"
+				}
+
+			}
+, 			{
+				"box" : 				{
 					"id" : "obj-46",
 					"maxclass" : "comment",
 					"numinlets" : 1,
@@ -3698,7 +3722,7 @@
 													"numoutlets" : 1,
 													"outlettype" : [ "float" ],
 													"patching_rect" : [ 225.0, 180.0, 88.0, 22.0 ],
-													"text" : "snapshot~ 200"
+													"text" : "snapshot~ 400"
 												}
 
 											}
@@ -3710,7 +3734,7 @@
 													"numoutlets" : 1,
 													"outlettype" : [ "float" ],
 													"patching_rect" : [ 120.0, 180.0, 88.0, 22.0 ],
-													"text" : "snapshot~ 200"
+													"text" : "snapshot~ 400"
 												}
 
 											}
@@ -3722,7 +3746,7 @@
 													"numoutlets" : 1,
 													"outlettype" : [ "float" ],
 													"patching_rect" : [ 15.0, 180.0, 88.0, 22.0 ],
-													"text" : "snapshot~ 200"
+													"text" : "snapshot~ 400"
 												}
 
 											}
@@ -8095,15 +8119,13 @@
 				"box" : 				{
 					"fontface" : 0,
 					"id" : "obj-2",
-					"linecount" : 3,
 					"maxclass" : "o.display",
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 945.0, 810.0, 143.0, 59.0 ],
+					"patching_rect" : [ 945.0, 810.0, 143.0, 33.0 ],
 					"presentation" : 1,
-					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ],
-					"text" : "/set-source/source/1/aed : [0., 0., 1.765]"
+					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ]
 				}
 
 			}
