@@ -2269,6 +2269,7 @@
 						"style" : "",
 						"subpatcher_template" : "",
 						"assistshowspatchername" : 0,
+						"visible" : 1,
 						"boxes" : [ 							{
 								"box" : 								{
 									"id" : "obj-71",
@@ -3148,7 +3149,7 @@
 										}
 ,
 										"classnamespace" : "box",
-										"rect" : [ 914.0, 431.0, 846.0, 533.0 ],
+										"rect" : [ 562.0, 224.0, 846.0, 533.0 ],
 										"bglocked" : 0,
 										"openinpresentation" : 0,
 										"default_fontsize" : 12.0,
@@ -3176,6 +3177,7 @@
 										"style" : "",
 										"subpatcher_template" : "",
 										"assistshowspatchername" : 0,
+										"visible" : 1,
 										"boxes" : [ 											{
 												"box" : 												{
 													"id" : "obj-13",
@@ -3196,7 +3198,7 @@
 													"numoutlets" : 1,
 													"outlettype" : [ "float" ],
 													"patching_rect" : [ 225.0, 180.0, 88.0, 22.0 ],
-													"text" : "snapshot~ 100"
+													"text" : "snapshot~ 200"
 												}
 
 											}
@@ -3208,7 +3210,7 @@
 													"numoutlets" : 1,
 													"outlettype" : [ "float" ],
 													"patching_rect" : [ 120.0, 180.0, 88.0, 22.0 ],
-													"text" : "snapshot~ 100"
+													"text" : "snapshot~ 200"
 												}
 
 											}
@@ -3220,7 +3222,7 @@
 													"numoutlets" : 1,
 													"outlettype" : [ "float" ],
 													"patching_rect" : [ 15.0, 180.0, 88.0, 22.0 ],
-													"text" : "snapshot~ 100"
+													"text" : "snapshot~ 200"
 												}
 
 											}
@@ -3507,14 +3509,6 @@
 								"patchline" : 								{
 									"destination" : [ "obj-90", 0 ],
 									"source" : [ "obj-162", 0 ]
-								}
-
-							}
-, 							{
-								"patchline" : 								{
-									"destination" : [ "obj-109", 0 ],
-									"midpoints" : [ 265.0, 186.5, 89.5, 186.5 ],
-									"source" : [ "obj-71", 0 ]
 								}
 
 							}
@@ -7508,15 +7502,13 @@
 				"box" : 				{
 					"fontface" : 0,
 					"id" : "obj-2",
-					"linecount" : 3,
 					"maxclass" : "o.display",
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 945.0, 810.0, 143.0, 59.0 ],
+					"patching_rect" : [ 945.0, 810.0, 143.0, 33.0 ],
 					"presentation" : 1,
-					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ],
-					"text" : "/set-source/source/1/aed : [0., 0., 1.765]"
+					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ]
 				}
 
 			}
