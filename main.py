@@ -998,7 +998,7 @@ class ExptShell(cmd.Cmd):
             reversals = int(arg[0])
             target_angle = None if tracking else float(arg[1]) 
             dist =  None if tracking else float(arg[2]) 
-            offsets = input("Enter angle and (normalized)radial offsets wrt tracker: ")
+            offsets = '0.0 0.0' if not tracking else input("Enter angle and (normalized)radial offsets wrt tracker: ")
             offsets = [float(elem) for elem in offsets.split()] 
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
@@ -1136,7 +1136,7 @@ class ExptShell(cmd.Cmd):
             runs = int(arg[0]) 
             target_angle = None if tracking else float(arg[1]) 
             dist =  None if tracking else float(arg[2])
-            offsets = input("Enter angle and (normalized)radial offsets wrt tracker: ")
+            offsets = '0.0 0.0' if not tracking else input("Enter angle and (normalized)radial offsets wrt tracker: ")
             offsets = [float(elem) for elem in offsets.split()] 
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
@@ -1219,10 +1219,10 @@ class ExptShell(cmd.Cmd):
         
             state_dict[sf]['tracking'] = len(params) == 0
 
-            try:
+            try: 
                 state_dict[sf]['target_angle'] = None if state_dict[sf]['tracking'] else float(params[0])
                 state_dict[sf]['dist'] = None if state_dict[sf]['tracking'] else float(params[1])
-                offsets = input(f"Enter angle and (normalized)radial offsets wrt tracker for {sf}: ")
+                offsets = '0.0 0.0' if not state_dict[sf]['tracking'] else input(f"Enter angle and (normalized)radial offsets wrt tracker for {sf}: ")
                 state_dict[sf]['offsets'] = [float(elem) for elem in offsets.split()] 
                 ranges = input(f"Enter ranges for {sf}: ")
                 ranges = [float(elem) for elem in ranges.split()]

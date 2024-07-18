@@ -1311,7 +1311,7 @@
 /ruler/color 1.0 1.0 1.0 1.0
 /ruler/unit "meters"
 /hoa/number 0
-/anchor/number 2
+/anchor/number 1
 /anchor/1/visible 1
 /anchor/1/editable 0
 /anchor/1/select 0
@@ -1324,18 +1324,6 @@
 /anchor/1/label/visible 1
 /anchor/1/label/color 0.0 0.0 0.0 1.0
 /anchor/1/label/justification "centred"
-/anchor/2/visible 1
-/anchor/2/editable 0
-/anchor/2/select 0
-/anchor/2/aed 0.0 0.0 1.5
-/anchor/2/constraint/circular 0
-/anchor/2/coordinates/visible 1
-/anchor/2/proportion 100.0
-/anchor/2/color 0.0 0.0 1.0 1.0
-/anchor/2/label "z"
-/anchor/2/label/visible 1
-/anchor/2/label/color 0.0 0.0 0.0 1.0
-/anchor/2/label/justification "centred"
 /phone/number 0
 /area/number 0
 /path/number 0
