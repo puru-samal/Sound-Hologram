@@ -158,7 +158,7 @@ class ExptShell(cmd.Cmd):
             print(f'Error {e}')
             return None
 
-    def get_separations(self, ranges, step_sizes):
+    def get_separations(self, ranges, step_sizes, max=60.0):
         i = 0
         j = 1
         separations = [ranges[i]]
@@ -169,7 +169,15 @@ class ExptShell(cmd.Cmd):
                 i += 1
                 j += 1
 
-        return separations
+        outer_ranges = []
+        terminator = separations[0] + step_sizes[0]
+        while terminator <= max:
+             outer_ranges.append(terminator)
+             terminator += step_sizes[0]
+             
+        start_idx = len(outer_ranges)
+        separations = outer_ranges[::-1] + separations
+        return start_idx, separations
 
     ############################
     ####    Dummy CMDs      ####
@@ -932,7 +940,7 @@ class ExptShell(cmd.Cmd):
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
+            start_idx, separations = self.get_separations(ranges, step_sizes)
             repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
             repeats2 = input("Enter repetions for interval2: ")
@@ -957,8 +965,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -983,9 +991,11 @@ class ExptShell(cmd.Cmd):
         return
     
     def do_3D1U_ST_Fixed(self, arg):
-        'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed reversals target_angle distance'
-        'untracked version: 3D1U_FT_Fixed reversals target_angle distance'
-        'tracked version: 3D1U_FT_Fixed reversals'
+        '''
+        Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed reversals target_angle distance\n
+        untracked version: 3D1U_FT_Fixed reversals target_angle distance\n
+        tracked version: 3D1U_FT_Fixed reversals\n
+        '''
         arg = arg.split()
         if not (len(arg) == 3 or len(arg) == 1):
             print("Error: see usage (hint: help 3D1U_ST_Fixed)")
@@ -1004,7 +1014,7 @@ class ExptShell(cmd.Cmd):
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
+            start_idx, separations = self.get_separations(ranges, step_sizes)
             repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
             repeats2 = input("Enter repetions for interval2: ")
@@ -1030,8 +1040,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -1069,7 +1079,7 @@ class ExptShell(cmd.Cmd):
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
+            start_idx, separations = self.get_separations(ranges, step_sizes)
             repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
             repeats2 = input("Enter repetions for interval2: ")
@@ -1095,8 +1105,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -1121,8 +1131,8 @@ class ExptShell(cmd.Cmd):
     def do_3D1U_FT_Fixed(self, arg):
         '''
         Run a variant of three-down-one-up experiment:\n
-        \tuntracked version: 3D1U_FT_Fixed runs target_angle distance\n
-        \ttracked version: 3D1U_FT_Fixed runs\n
+        untracked version: 3D1U_FT_Fixed runs target_angle distance\n
+        tracked version: 3D1U_FT_Fixed runs\n
         '''
         
         arg = arg.split()
@@ -1142,7 +1152,7 @@ class ExptShell(cmd.Cmd):
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
+            start_idx, separations = self.get_separations(ranges, step_sizes)
             repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
             repeats2 = input("Enter repetions for interval2: ")
@@ -1168,8 +1178,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -1228,7 +1238,7 @@ class ExptShell(cmd.Cmd):
                 ranges = [float(elem) for elem in ranges.split()]
                 step_sizes = input(f"Enter step sizes for {sf}: ")
                 step_sizes = [float(elem) for elem in step_sizes.split()]
-                state_dict[sf]['separations'] = self.get_separations(ranges, step_sizes)
+                start_idx, state_dict[sf]['separations'] = self.get_separations(ranges, step_sizes)
                 repeats1 = input("Enter repetions for interval1: ")
                 state_dict[sf]['repeats1'] = int(repeats1)
                 repeats2 = input("Enter repetions for interval2: ")
@@ -1249,8 +1259,8 @@ class ExptShell(cmd.Cmd):
                     'curr_reversals': 0,
                     'curr_run': 0,
                     'state': -1,
-                    'sep_idx': 0,
-                    'sep': state_dict[sf]['separations'][0]
+                    'sep_idx': start_idx,
+                    'sep': state_dict[sf]['separations'][start_idx]
                 }
             except Exception as e:
                 print(str(e))
