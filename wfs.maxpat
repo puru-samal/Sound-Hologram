@@ -2984,6 +2984,7 @@
 						"style" : "",
 						"subpatcher_template" : "",
 						"assistshowspatchername" : 0,
+						"visible" : 1,
 						"boxes" : [ 							{
 								"box" : 								{
 									"id" : "obj-5",
@@ -4294,14 +4295,6 @@
 								"patchline" : 								{
 									"destination" : [ "obj-5", 1 ],
 									"source" : [ "obj-3", 0 ]
-								}
-
-							}
-, 							{
-								"patchline" : 								{
-									"destination" : [ "obj-109", 0 ],
-									"midpoints" : [ 233.5, 197.0, 85.5, 197.0 ],
-									"source" : [ "obj-5", 0 ]
 								}
 
 							}
@@ -8100,13 +8093,13 @@
 , 							{
 								"box" : 								{
 									"id" : "obj-39",
-									"linecount" : 5,
+									"linecount" : 4,
 									"maxclass" : "message",
 									"numinlets" : 2,
 									"numoutlets" : 1,
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 50.0, 163.0, 60.0, 76.0 ],
-									"text" : "/max/set-source/source/1/aed 0. 0. 1.765"
+									"text" : "/max/init-spat/preset/load config.txt"
 								}
 
 							}
@@ -8333,15 +8326,15 @@
 				"box" : 				{
 					"fontface" : 0,
 					"id" : "obj-2",
-					"linecount" : 3,
+					"linecount" : 2,
 					"maxclass" : "o.display",
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 945.0, 810.0, 143.0, 59.0 ],
+					"patching_rect" : [ 945.0, 810.0, 143.0, 46.0 ],
 					"presentation" : 1,
 					"presentation_rect" : [ 295.524691000580788, 645.0, 443.950617998838425, 33.0 ],
-					"text" : "/set-source/source/1/aed : [0., 0., 1.765]"
+					"text" : "/init-spat/preset/load : \"config.txt\""
 				}
 
 			}

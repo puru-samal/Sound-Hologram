@@ -136,13 +136,10 @@ class PresetGenerator:
             input_fn = self.ipad_user_input
 
         tracking = target_angle is None and dist is None
-
-        if tab is not None:
-            self.set_ipad_tab(tab)
         
         if tracking:
             self.set_tracking(1)
-
+        
         for run in range(runs):
             rand = -1 if np.random.randint(2) == 0 else 1  # 1 or -1
             sep1 = rand * (sep / 2)
@@ -158,6 +155,9 @@ class PresetGenerator:
             else:
                 self.set_offset_rel_tracker(1, *offsets)
                 self.set_pos_rel_tracker(1, sep1)
+
+            if tab is not None:
+                self.set_ipad_tab(tab)
 
             if repeat1 > 0:
                 self.num_loop(repeat1)

@@ -124,7 +124,7 @@ class ExptShell(cmd.Cmd):
         osc_terminate()
 
     def block_until_recieved(self, debug=False):
-        item = self.msg_queue.get(block=True, timeout=5)
+        item = self.msg_queue.get(block=True, timeout=None)
         if debug:
             print(item)
         return item
@@ -196,9 +196,13 @@ class ExptShell(cmd.Cmd):
             print(str(e))
             return
         
+        self.ACCEPT_IPAD_INPUT = True
         msg = oscbuildparse.OSCMessage(
-            "/ipad/pager/", ",i", [page])
+            "/ipad/pager", ",i", [page])
         osc_send(msg, self.WIFI_CLIENT)
+        ipad_state = self.block_until_recieved().split('/')[-1]
+        self.ACCEPT_IPAD_INPUT = False
+        print(ipad_state)
         print(f"SUCCESS: iPad set to page {page}")
         return
 
@@ -285,7 +289,7 @@ class ExptShell(cmd.Cmd):
                     self.IPAD_AVAILABLE = False
                     return
             else:
-                IPAD_AVAILABLE = False
+                self.IPAD_AVAILABLE = False
                 print("Using keyboard input.")
                 return
 
@@ -1245,7 +1249,7 @@ class ExptShell(cmd.Cmd):
                 state_dict[sf]['target_angle'] = None if state_dict[sf]['tracking'] else float(params[0])
                 state_dict[sf]['dist'] = None if state_dict[sf]['tracking'] else float(params[1])
                 tab  = input(f"Enter trial iPad tab [1/2] for {sf}: ")
-                state_dict[sf]['tab']  = int(tab) 
+                state_dict[sf]['tab']  = int(tab)
                 offsets = '0.0 0.0' if not state_dict[sf]['tracking'] else input(f"Enter angle and (normalized)radial offsets wrt tracker for {sf}: ")
                 state_dict[sf]['offsets'] = [float(elem) for elem in offsets.split()] 
                 ranges = input(f"Enter ranges for {sf}: ")
