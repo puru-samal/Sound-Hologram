@@ -36,6 +36,10 @@ class PresetGenerator:
         cmd = "ipad_user_input\n"
         self.cmdqueue.put(cmd)
 
+    def set_ipad_tab(self, page):
+        cmd = f"set_ipad_tab {page}\n"
+        self.cmdqueue.put(cmd)
+
     def key_user_input(self):
         cmd = "key_user_input\n"
         self.cmdqueue.put(cmd)
@@ -90,6 +94,7 @@ class PresetGenerator:
     def return_to_default(self):
         self.set_tracking(0)
         self.set_pos(1, 0.0, 0.5)
+        self.set_ipad_tab(0)
         return self.write_to_str()
         
     def randomized_two_source(self, runs, lo, hi, sep, dist, repeat1 = 0, repeat2= 0, input_type='keyboard', filename=None):
@@ -124,7 +129,7 @@ class PresetGenerator:
 
         return self.write_to_str()
 
-    def deterministic_two_source(self, runs, target_angle, sep, dist, repeat1=0, repeat2=0, offsets=[0.0, 0.0], input_type='keyboard', filename=None):
+    def deterministic_two_source(self, runs, target_angle, sep, dist, repeat1=0, repeat2=0, offsets=[0.0, 0.0], input_type='keyboard', filename=None, tab=None):
         if input_type == 'keyboard':
             input_fn = self.key_user_input
         elif input_type == 'ipad':
@@ -132,6 +137,9 @@ class PresetGenerator:
 
         tracking = target_angle is None and dist is None
 
+        if tab is not None:
+            self.set_ipad_tab(tab)
+        
         if tracking:
             self.set_tracking(1)
 
