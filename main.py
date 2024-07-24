@@ -24,6 +24,8 @@ import psutil
 from scipy.io import wavfile
 import scipy.signal as sps
 import utils
+from datetime import datetime
+import subprocess
 
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
@@ -37,6 +39,9 @@ class ExptShell(cmd.Cmd):
 
     intro = 'Experiment shell for Sound Hologram. Type help or ? to list commands.'
     prompt = '> '
+
+    # Commit hash
+    GIT_COMMIT = subprocess.check_output(["git", "describe", "--always"]).strip().decode()
 
     # Max Comms
     IP = "127.0.0.1"    # Local Server
@@ -255,7 +260,7 @@ class ExptShell(cmd.Cmd):
                 # NOTE: IMPORTANT!  
                 # en0 for testing at home
                 # en1 for labwork
-                self.WIFI_SERVER_IP = self.get_ip_addr(interface_name='en0')
+                self.WIFI_SERVER_IP = self.get_ip_addr(interface_name='en1')
 
                 # Initialize Server
                 osc_udp_server(self.WIFI_SERVER_IP, self.WIFI_SERVER_PORT,
@@ -1175,6 +1180,9 @@ class ExptShell(cmd.Cmd):
             print("Parse Error: Enter valid values")
             return
         
+        now = datetime.now()
+        now = now.strftime("%Y-%m-%d %H:%M:%S")
+
         # Set appropriate iPad tab for experiment
         self.do_set_ipad_tab(f'{tab}')
 
@@ -1186,6 +1194,18 @@ class ExptShell(cmd.Cmd):
             "Direction": [],
             "Recorded_Direction": [],
             "Reversal": [],
+
+            ## Track Parameters
+            "#Git_Commit_Hash": [self.GIT_COMMIT for _ in range(runs)],
+            "#Track_Start_Time": [now for _ in range(runs)],
+            "#Track_Type": [("Tracked" if tracking else "Static") for _ in range(runs)],
+            "#Target_Angle": [target_angle for _ in range(runs)],
+            "#Track_Tab": [tab for _ in range(runs)],
+            "#Offsets_from_Tracker": [offsets for  _ in range(runs)],
+            "#Ranges": [ranges for _ in range(runs)],
+            "#Step_Sizes": [step_sizes for _ in range(runs)],
+            "#Repeats_Interval1": [repeats1 for  _ in range(runs)],
+            "#Repeats_Interval2": [repeats2 for  _ in range(runs)],
         }
 
         # State Variables
@@ -1233,6 +1253,10 @@ class ExptShell(cmd.Cmd):
             return
 
         state_dict = {}
+
+        now = datetime.now()
+        now = now.strftime("%Y-%m-%d %H:%M:%S")
+
         for sf in soundfiles:
             state_dict[sf] = {}
             params = input(
@@ -1270,6 +1294,19 @@ class ExptShell(cmd.Cmd):
                     "Direction": [],
                     "Recorded_Direction": [],
                     "Reversal": [],
+
+                    ## Track Parameters
+                    "#Git_Commit_Hash": [self.GIT_COMMIT for _ in range(runs)],
+                    "#Sound_File": [sf for _ in range(runs)],
+                    "#Track_Start_Time": [now for _ in range(runs)],
+                    "#Track_Type": [("Tracked" if state_dict[sf]['tracking'] else "Static") for _ in range(runs)],
+                    "#Target_Angle": [state_dict[sf]['target_angle'] for _ in range(runs)],
+                    "#Track_Tab": [state_dict[sf]['tab'] for _ in range(runs)],
+                    "#Offsets_from_Tracker": [state_dict[sf]['offsets'] for  _ in range(runs)],
+                    "#Ranges": [ranges for _ in range(runs)],
+                    "#Step_Sizes": [step_sizes for _ in range(runs)],
+                    "#Repeats_Interval1": [state_dict[sf]['repeats1'] for  _ in range(runs)],
+                    "#Repeats_Interval2": [state_dict[sf]['repeats2'] for  _ in range(runs)],
                 }
 
                 state_dict[sf]['track_state'] = {
@@ -1288,11 +1325,14 @@ class ExptShell(cmd.Cmd):
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
 
         curr_run = 0
+        prev_tab = None
         while curr_run != runs:
             for sf in state_dict.keys():
                 
                 self.pos_queue.clear()
                 self.input_queue.clear()
+
+                curr_tab = state_dict[sf]['tab']
 
                 # Generate experiment
                 inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
@@ -1303,9 +1343,9 @@ class ExptShell(cmd.Cmd):
                                                        offsets=state_dict[sf]['offsets'],
                                                        repeat1=state_dict[sf]['repeats1'], 
                                                        repeat2=state_dict[sf]['repeats2'],
-                                                       tab=state_dict[sf]['tab'])
+                                                       tab=curr_tab if (prev_tab is None or prev_tab != curr_tab) else None)
 
-                prev_tab = state_dict[sf]['tab']
+                prev_tab = curr_tab
                
 
                 self.process_trial(trial, state_dict[sf]['separations'], state_dict[sf]['track_state'], state_dict[sf]['results'],
