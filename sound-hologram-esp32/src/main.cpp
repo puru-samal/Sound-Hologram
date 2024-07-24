@@ -6,15 +6,19 @@
 #include <OSCBundle.h>
 #include <OSCData.h>
 #include <esp_wifi.h>
+#include <Adafruit_NeoPixel.h>
 
 // char ssid[] = "CMU-DEVICE";
 // char pass[] = "PittsburghPZM";
-char ssid[] = "sound-hologram";
+char ssid[] = "sound-hologram_tray";
 char pass[] = "spatial_";
 
 WiFiUDP Udp;
 const unsigned int recive_port = 1342;
-const unsigned int LED_PIN = 15;
+const unsigned int LED_PIN = 13;
+const unsigned int LED_COUNT = 30;
+
+Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // Define Static IP addr, gatewat and subnet_mask
 // Usable range : 172.16.1.[1..254]
@@ -71,12 +75,34 @@ void setup()
 
   Serial.print("[DEFAULT] ESP32 Board MAC Address: ");
   readMacAddress();
+
+  // Init LED Strip
+  strip.begin();
+  // strip.show();
 }
 
-void led(OSCMessage &msg)
+void led_strip(OSCMessage &msg)
 {
   ledState = msg.getInt(0);
-  digitalWrite(LED_PIN, ledState);
+  // digitalWrite(LED_PIN, ledState);
+  if (ledState)
+  {
+    // Turn LED's on
+    for (int i = 0; i < strip.numPixels(); i++)
+    {
+      strip.setPixelColor(i, strip.Color(255, 255, 255));
+    }
+  }
+  else
+  {
+    // Turn LED's off
+    for (int i = 0; i < strip.numPixels(); i++)
+    {
+      strip.setPixelColor(i, strip.Color(0, 0, 0));
+    }
+  }
+
+  strip.show();
   Serial.print("/led: ");
   Serial.println(ledState);
 }
@@ -94,7 +120,7 @@ void loop()
     }
     if (!msg.hasError())
     {
-      msg.dispatch("/led", led);
+      msg.dispatch("/led", led_strip);
     }
     else
     {

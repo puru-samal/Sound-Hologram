@@ -20,6 +20,10 @@ class PresetGenerator:
         cmd = f"set_pos {index} {angle} {distance}\n"
         self.cmdqueue.put(cmd)
     
+    def set_offset_rel_tracker(self, index, angle_offset, radial_offset):
+        cmd = f"set_offset_rel_tracker {index} {angle_offset} {radial_offset}\n"
+        self.cmdqueue.put(cmd)
+
     def set_pos_rel_tracker(self, index, separation):
         cmd = f"set_pos_rel_tracker {index} {separation}\n"
         self.cmdqueue.put(cmd)
@@ -30,6 +34,10 @@ class PresetGenerator:
 
     def ipad_user_input(self):
         cmd = "ipad_user_input\n"
+        self.cmdqueue.put(cmd)
+
+    def set_ipad_tab(self, page):
+        cmd = f"set_ipad_tab {page}\n"
         self.cmdqueue.put(cmd)
 
     def key_user_input(self):
@@ -86,6 +94,7 @@ class PresetGenerator:
     def return_to_default(self):
         self.set_tracking(0)
         self.set_pos(1, 0.0, 0.5)
+        self.set_ipad_tab(0)
         return self.write_to_str()
         
     def randomized_two_source(self, runs, lo, hi, sep, dist, repeat1 = 0, repeat2= 0, input_type='keyboard', filename=None):
@@ -120,17 +129,17 @@ class PresetGenerator:
 
         return self.write_to_str()
 
-    def deterministic_two_source(self, runs, target_angle, sep, dist, repeat1=0, repeat2=0, input_type='keyboard', filename=None):
+    def deterministic_two_source(self, runs, target_angle, sep, dist, repeat1=0, repeat2=0, offsets=[0.0, 0.0], input_type='keyboard', filename=None, tab=None):
         if input_type == 'keyboard':
             input_fn = self.key_user_input
         elif input_type == 'ipad':
             input_fn = self.ipad_user_input
 
         tracking = target_angle is None and dist is None
-
+        
         if tracking:
             self.set_tracking(1)
-
+        
         for run in range(runs):
             rand = -1 if np.random.randint(2) == 0 else 1  # 1 or -1
             sep1 = rand * (sep / 2)
@@ -144,7 +153,11 @@ class PresetGenerator:
             if not tracking:
                 self.set_pos(1, angle1, dist)
             else:
+                self.set_offset_rel_tracker(1, *offsets)
                 self.set_pos_rel_tracker(1, sep1)
+
+            if tab is not None:
+                self.set_ipad_tab(tab)
 
             if repeat1 > 0:
                 self.num_loop(repeat1)

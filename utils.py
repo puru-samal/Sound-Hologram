@@ -216,6 +216,38 @@ def plot_doa_results(result_dict, YM=3.53, SP=0.059, NUM_SPEAKERS=64):
     cbar.set_label("Error")
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
+def get_separations(ranges, step_sizes, maximum=40.0, minimum=0.1):
+    i = 0
+    j = 1
+    separations = [ranges[i]]
+    while j < len(ranges):
+        sep = separations[-1] - step_sizes[i]
+        separations.append(sep)
+        if sep <= ranges[j]:
+            i += 1
+            j += 1
+
+    outer_ranges = []
+    terminator = separations[0]
+    while terminator < maximum:
+            terminator += step_sizes[0]
+            outer_ranges.append(min(terminator, maximum))
+            
+            
+    start_idx = len(outer_ranges)
+    separations = outer_ranges[::-1] + separations
+
+    inner_ranges = []
+    terminator = separations[-1]
+    while terminator > minimum:
+            terminator -= step_sizes[-1]
+            inner_ranges.append(max(terminator, minimum))
+    
+    separations =  separations + inner_ranges
+
+    assert(separations[start_idx] == ranges[0])
+    return start_idx, separations
+
 
 #result_dict = dfText2Dict('test_rev.txt')
 # plt.plot(result_dict['Separation'])

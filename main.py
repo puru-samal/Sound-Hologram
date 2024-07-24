@@ -158,19 +158,6 @@ class ExptShell(cmd.Cmd):
             print(f'Error {e}')
             return None
 
-    def get_separations(self, ranges, step_sizes):
-        i = 0
-        j = 1
-        separations = [ranges[i]]
-        while j < len(ranges):
-            sep = separations[-1] - step_sizes[i]
-            separations.append(sep)
-            if sep <= ranges[j]:
-                i += 1
-                j += 1
-
-        return separations
-
     ############################
     ####    Dummy CMDs      ####
     ############################
@@ -178,19 +165,45 @@ class ExptShell(cmd.Cmd):
     def do_ipad_user_input(self, arg):
         if len(self.input_queue) > self.max_size // 2:
             self.input_queue.clear()
+        
 
         self.ACCEPT_IPAD_INPUT = True
         msg = oscbuildparse.OSCMessage(
-            "/ipad/centre/", ",f", [1.0])
+            "/ipad/centre", ",i", [1])
         osc_send(msg, self.WIFI_CLIENT)
 
         ipad_state = self.block_until_recieved().split('/')[-1]
         self.ACCEPT_IPAD_INPUT = False
-        self.input_queue.append(ipad_state)
+        if ipad_state == 'up' or ipad_state == 'down' or ipad_state == 'left' or ipad_state == 'right': 
+            self.input_queue.append(ipad_state)
 
         msg = oscbuildparse.OSCMessage(
-            "/ipad/centre/", ",f", [0.0])
+            "/ipad/centre", ",i", [0])
         osc_send(msg, self.WIFI_CLIENT)
+        return
+
+    def do_set_ipad_tab(self, arg):
+        'set tab in ipad: set_ipad_tab page [0/1]'
+        arg = arg.split()
+        if len(arg) != 1:
+            print("Error: see usage (hint: help set_ipad_tab)")
+            return
+        
+        try:
+            page = int(arg[0])
+        except Exception as e:
+            print("Argument Parse Error.")
+            print(str(e))
+            return
+        
+        self.ACCEPT_IPAD_INPUT = True
+        msg = oscbuildparse.OSCMessage(
+            "/ipad/pager", ",i", [page])
+        osc_send(msg, self.WIFI_CLIENT)
+        ipad_state = self.block_until_recieved().split('/')[-1]
+        self.ACCEPT_IPAD_INPUT = False
+        print(ipad_state)
+        print(f"SUCCESS: iPad set to page {page}")
         return
 
     def do_key_user_input(self, arg):
@@ -239,9 +252,10 @@ class ExptShell(cmd.Cmd):
             ipad_input = input("Use iPad input? [y/n]: ")
 
             if ipad_input.lower() == 'y':
-                #hostname = socket.gethostname()
-                #self.WIFI_SERVER_IP = socket.gethostbyname(hostname)
-                self.WIFI_SERVER_IP = self.get_ip_addr(interface_name='en1')
+                # NOTE: IMPORTANT!  
+                # en0 for testing at home
+                # en1 for labwork
+                self.WIFI_SERVER_IP = self.get_ip_addr(interface_name='en0')
 
                 # Initialize Server
                 osc_udp_server(self.WIFI_SERVER_IP, self.WIFI_SERVER_PORT,
@@ -275,7 +289,7 @@ class ExptShell(cmd.Cmd):
                     self.IPAD_AVAILABLE = False
                     return
             else:
-                IPAD_AVAILABLE = False
+                self.IPAD_AVAILABLE = False
                 print("Using keyboard input.")
                 return
 
@@ -398,6 +412,24 @@ class ExptShell(cmd.Cmd):
     
     def do_query_tracker_pos(self, args):
         pass
+    
+    def do_set_offset_rel_tracker(self, arg):
+        'Set radial and angular offset from tracker: set_offset_rel_tracker idx angle_offset radial_offset'
+        'Tracking must be enabled'
+        arg = arg.split()
+        try:
+            idx = int(arg[0])
+            angle_offset = float(arg[1])
+            radial_offset = float(arg[2])
+        except:
+            print("Parse Error: Invalid Arguments")
+            return
+        
+        msg = oscbuildparse.OSCMessage(
+            f"/set-offset-rel-tracker/source/{idx}/offset", ",ff", [angle_offset, self.YM*radial_offset])
+        osc_send(msg, self.CLIENT)
+        self.block_until_recieved()
+        return
 
     def do_set_pos_rel_tracker(self, arg):
         'Set source position relatice to tracker: set_pos_rel_tracker index separation'
@@ -417,8 +449,8 @@ class ExptShell(cmd.Cmd):
             f"/set-source-rel-tracker/source/{idx}/sep", ",f", [sep])
         osc_send(msg, self.CLIENT)
         self.block_until_recieved()
-        self.pos_queue.append(f'trkd/{sep}')
-        pass
+        self.pos_queue.append(f'trkr/{sep}')
+        return
 
     def do_set_speaker(self, arg):
         'Set Active speaker: set_speaker speakeridx0 speakeridx1 ...'
@@ -447,7 +479,7 @@ class ExptShell(cmd.Cmd):
         'Plays all unmuted sources: play'
         print("Playing...")
         attr = self.pos_queue[-1].split('/')
-        if attr[0] == 'trkd':
+        if attr[0] == 'trkr':
             print(f"\tSource: Tracked with sep:{attr[-1]}")
         else:   
             print(f"\tSource: Dist:{attr[0]} | Angle:{attr[-1]}")
@@ -809,7 +841,7 @@ class ExptShell(cmd.Cmd):
         print(f"SUCCESS: Saved results in {file_name}")
         return
 
-    def process_trial(self, trial, separations, track_state : dict, results : dict, tracking=False):
+    def process_trial(self, trial, separations, track_state : dict, results : dict, offsets=[0.0, 0.0], tracking=False):
         '''Helper funtion to run a trial in a 3D1U track.'''
         # Do experiment
         cmds = trial.splitlines()
@@ -823,9 +855,9 @@ class ExptShell(cmd.Cmd):
         recorded_dir = self.input_queue[0]
         initial_pos = self.pos_queue[0]
         final_pos = self.pos_queue[1]
-        distance = initial_pos.split('/')[0] if tracking else np.round(float(initial_pos.split('/')[0]), 2)
-        init_angle = np.round(float(initial_pos.split('/')[-1]), 2)
-        final_angle = np.round(float(final_pos.split('/')[-1]), 2)
+        distance = (initial_pos.split('/')[0] + f'+{str(offsets[1])}') if tracking else (np.round(float(initial_pos.split('/')[0]), 2) + offsets[1])
+        init_angle = offsets[0]+ np.round(float(initial_pos.split('/')[-1]), 2)
+        final_angle = offsets[0]+ np.round(float(final_pos.split('/')[-1]), 2)
         actual_dir = "right" if (final_angle - init_angle) >= 0 else "left"
 
         # Store entries in a dict
@@ -838,7 +870,7 @@ class ExptShell(cmd.Cmd):
         results["Reversal"].append('-')
 
         # If correct Response
-        if recorded_dir == actual_dir:
+        if (recorded_dir == 'up' or recorded_dir == 'down') or recorded_dir == actual_dir:
             track_state['correctInaRow'] += 1
 
             if track_state['correctInaRow'] == 3:  # three down
@@ -914,10 +946,10 @@ class ExptShell(cmd.Cmd):
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
-            repeats1 = input("Enter repitions for interval1: ")
+            start_idx, separations = utils.get_separations(ranges, step_sizes)
+            repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
-            repeats2 = input("Enter repitions for interval2: ")
+            repeats2 = input("Enter repetions for interval2: ")
             repeats2 = int(repeats2)
         except Exception as e:
             print(str(e))
@@ -939,8 +971,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -965,9 +997,11 @@ class ExptShell(cmd.Cmd):
         return
     
     def do_3D1U_ST_Fixed(self, arg):
-        'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed reversals target_angle distance'
-        'untracked version: 3D1U_FT_Fixed reversals target_angle distance'
-        'tracked version: 3D1U_FT_Fixed reversals'
+        '''
+        Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed reversals target_angle distance\n
+        untracked version: 3D1U_FT_Fixed reversals target_angle distance\n
+        tracked version: 3D1U_FT_Fixed reversals\n
+        '''
         arg = arg.split()
         if not (len(arg) == 3 or len(arg) == 1):
             print("Error: see usage (hint: help 3D1U_ST_Fixed)")
@@ -978,21 +1012,28 @@ class ExptShell(cmd.Cmd):
 
         try:
             reversals = int(arg[0])
-            target_angle = None if tracking else float(arg[1]) 
-            dist =  None if tracking else float(arg[2]) 
+            target_angle = None if tracking else float(arg[1])
+            dist =  None if tracking else float(arg[2])
+            tab  = input("Enter trial iPad tab [1/2]: ")
+            tab  = int(tab)  
+            offsets = '0.0 0.0' if not tracking else input("Enter angle and (normalized)radial offsets wrt tracker: ")
+            offsets = [float(elem) for elem in offsets.split()] 
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
-            repeats1 = input("Enter repitions for interval1: ")
+            start_idx, separations = utils.get_separations(ranges, step_sizes)
+            repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
-            repeats2 = input("Enter repitions for interval2: ")
+            repeats2 = input("Enter repetions for interval2: ")
             repeats2 = int(repeats2)
         except Exception as e:
             print(str(e))
             print("Parse Error: Enter valid values")
             return
+        
+        # Set appropriate iPad tab for experiment
+        self.do_set_ipad_tab(f'{tab}')
 
         results = {
             "Radial_Distance": [],
@@ -1010,8 +1051,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -1023,9 +1064,9 @@ class ExptShell(cmd.Cmd):
             # Generate experiment
             inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
             trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                               input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
+                                               offsets=offsets, input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
 
-            self.process_trial(trial, separations, track_state, results, tracking=tracking)
+            self.process_trial(trial, separations, track_state, results, offsets=offsets, tracking=tracking)
 
         # Write results to text file
         self.process_results(results)
@@ -1049,10 +1090,10 @@ class ExptShell(cmd.Cmd):
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
-            repeats1 = input("Enter repitions for interval1: ")
+            start_idx, separations = utils.get_separations(ranges, step_sizes)
+            repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
-            repeats2 = input("Enter repitions for interval2: ")
+            repeats2 = input("Enter repetions for interval2: ")
             repeats2 = int(repeats2)
         except Exception as e:
             print(str(e))
@@ -1075,8 +1116,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -1099,9 +1140,12 @@ class ExptShell(cmd.Cmd):
         return
 
     def do_3D1U_FT_Fixed(self, arg):
-        'Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed runs target_angle distance'
-        'untracked version: 3D1U_FT_Fixed runs target_angle distance'
-        'tracked version: 3D1U_FT_Fixed runs'
+        '''
+        Run a variant of three-down-one-up experiment:\n
+        untracked version: 3D1U_FT_Fixed runs target_angle distance\n
+        tracked version: 3D1U_FT_Fixed runs\n
+        '''
+        
         arg = arg.split()
         if not (len(arg) == 3 or len(arg) == 1):
             print("Error: see usage (hint: help 3D1U_FT_Fixed)")
@@ -1112,20 +1156,27 @@ class ExptShell(cmd.Cmd):
         try:
             runs = int(arg[0]) 
             target_angle = None if tracking else float(arg[1]) 
-            dist =  None if tracking else float(arg[2]) 
+            dist =  None if tracking else float(arg[2])
+            tab  = input("Enter trial iPad tab [1/2]: ")
+            tab  = int(tab)
+            offsets = '0.0 0.0' if not tracking else input("Enter angle and (normalized)radial offsets wrt tracker: ")
+            offsets = [float(elem) for elem in offsets.split()] 
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
             step_sizes = [float(elem) for elem in step_sizes.split()]
-            separations = self.get_separations(ranges, step_sizes)
-            repeats1 = input("Enter repitions for interval1: ")
+            start_idx, separations = utils.get_separations(ranges, step_sizes)
+            repeats1 = input("Enter repetions for interval1: ")
             repeats1 = int(repeats1)
-            repeats2 = input("Enter repitions for interval2: ")
+            repeats2 = input("Enter repetions for interval2: ")
             repeats2 = int(repeats2)
         except Exception as e:
             print(str(e))
             print("Parse Error: Enter valid values")
             return
+        
+        # Set appropriate iPad tab for experiment
+        self.do_set_ipad_tab(f'{tab}')
 
         results = {
             "Radial_Distance": [],
@@ -1143,8 +1194,8 @@ class ExptShell(cmd.Cmd):
             'curr_reversals': 0,
             'curr_run': 0,
             'state': -1,
-            'sep_idx': 0,
-            'sep': separations[0]
+            'sep_idx': start_idx,
+            'sep': separations[start_idx]
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
@@ -1156,9 +1207,9 @@ class ExptShell(cmd.Cmd):
             # Generate experiment
             inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
             trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                                   input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
+                                               offsets=offsets, input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
 
-            self.process_trial(trial, separations, track_state, results, tracking=tracking)
+            self.process_trial(trial, separations, track_state, results, offsets=offsets, tracking=tracking)
 
         # Write results to text file
         self.process_results(results)
@@ -1192,20 +1243,24 @@ class ExptShell(cmd.Cmd):
                 print("Error: see usage (hint: help 3D1U_Interleaved)")
                 return
         
-            tracking = len(params) == 0
+            state_dict[sf]['tracking'] = len(params) == 0
 
-            try:
-                state_dict[sf]['target_angle'] = None if tracking else float(params[0])
-                state_dict[sf]['dist'] = None if tracking else float(params[1])
+            try: 
+                state_dict[sf]['target_angle'] = None if state_dict[sf]['tracking'] else float(params[0])
+                state_dict[sf]['dist'] = None if state_dict[sf]['tracking'] else float(params[1])
+                tab  = input(f"Enter trial iPad tab [1/2] for {sf}: ")
+                state_dict[sf]['tab']  = int(tab)
+                offsets = '0.0 0.0' if not state_dict[sf]['tracking'] else input(f"Enter angle and (normalized)radial offsets wrt tracker for {sf}: ")
+                state_dict[sf]['offsets'] = [float(elem) for elem in offsets.split()] 
                 ranges = input(f"Enter ranges for {sf}: ")
                 ranges = [float(elem) for elem in ranges.split()]
                 step_sizes = input(f"Enter step sizes for {sf}: ")
                 step_sizes = [float(elem) for elem in step_sizes.split()]
-                state_dict[sf]['separations'] = self.get_separations(ranges, step_sizes)
-                repeats1 = input("Enter repitions for interval1: ")
-                repeats1 = int(repeats1)
-                repeats2 = input("Enter repitions for interval2: ")
-                repeats2 = int(repeats2)
+                start_idx, state_dict[sf]['separations'] = utils.get_separations(ranges, step_sizes)
+                repeats1 = input("Enter repetions for interval1: ")
+                state_dict[sf]['repeats1'] = int(repeats1)
+                repeats2 = input("Enter repetions for interval2: ")
+                state_dict[sf]['repeats2'] = int(repeats2)
                 
                 state_dict[sf]['results'] = {
                     "Radial_Distance": [],
@@ -1218,15 +1273,12 @@ class ExptShell(cmd.Cmd):
                 }
 
                 state_dict[sf]['track_state'] = {
-                    'repeats1': repeats1,
-                    'repeats2': repeats2,
-                    'tracking': tracking,
                     'correctInaRow' : 0,
                     'curr_reversals': 0,
                     'curr_run': 0,
                     'state': -1,
-                    'sep_idx': 0,
-                    'sep': state_dict[sf]['separations'][0]
+                    'sep_idx': start_idx,
+                    'sep': state_dict[sf]['separations'][start_idx]
                 }
             except Exception as e:
                 print(str(e))
@@ -1238,7 +1290,7 @@ class ExptShell(cmd.Cmd):
         curr_run = 0
         while curr_run != runs:
             for sf in state_dict.keys():
-
+                
                 self.pos_queue.clear()
                 self.input_queue.clear()
 
@@ -1248,13 +1300,16 @@ class ExptShell(cmd.Cmd):
                                                        state_dict[sf]['track_state']['sep'], 
                                                        state_dict[sf]['dist'], 
                                                        input_type=inp_type, filename=sf,
-                                                       repeat1=state_dict[sf]['track_state']['repeats1'], 
-                                                       repeat2=state_dict[sf]['track_state']['repeats2'])
+                                                       offsets=state_dict[sf]['offsets'],
+                                                       repeat1=state_dict[sf]['repeats1'], 
+                                                       repeat2=state_dict[sf]['repeats2'],
+                                                       tab=state_dict[sf]['tab'])
 
+                prev_tab = state_dict[sf]['tab']
                
 
                 self.process_trial(trial, state_dict[sf]['separations'], state_dict[sf]['track_state'], state_dict[sf]['results'],
-                                   tracking=state_dict[sf]['track_state']['tracking'])
+                                   offsets=state_dict[sf]['offsets'], tracking=state_dict[sf]['tracking'])
             curr_run += 1
 
         for sf in state_dict.keys():
