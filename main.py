@@ -255,7 +255,7 @@ class ExptShell(cmd.Cmd):
                 # NOTE: IMPORTANT!  
                 # en0 for testing at home
                 # en1 for labwork
-                self.WIFI_SERVER_IP = self.get_ip_addr(interface_name='en0')
+                self.WIFI_SERVER_IP = self.get_ip_addr(interface_name='en1')
 
                 # Initialize Server
                 osc_udp_server(self.WIFI_SERVER_IP, self.WIFI_SERVER_PORT,
