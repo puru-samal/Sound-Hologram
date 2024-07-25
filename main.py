@@ -207,7 +207,6 @@ class ExptShell(cmd.Cmd):
         osc_send(msg, self.WIFI_CLIENT)
         ipad_state = self.block_until_recieved().split('/')[-1]
         self.ACCEPT_IPAD_INPUT = False
-        print(ipad_state)
         print(f"SUCCESS: iPad set to page {page}")
         return
 
