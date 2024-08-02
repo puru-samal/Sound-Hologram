@@ -139,6 +139,8 @@ class PresetGenerator:
         
         if tracking:
             self.set_tracking(1)
+        else:
+            self.set_tracking(0)
         
         for run in range(runs):
             rand = -1 if np.random.randint(2) == 0 else 1  # 1 or -1
