@@ -11,6 +11,9 @@ import scipy
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
+from collections import deque
+import seaborn as sns
+from matplotlib.pyplot import subplots
 
 
 def cross_corr(filename, true_peak=True):
@@ -247,6 +250,37 @@ def get_separations(ranges, step_sizes, maximum=40.0, minimum=0.1):
 
     assert(separations[start_idx] == ranges[0])
     return start_idx, separations
+
+class MvAverage:
+    def __init__(self, track, max_size=6):
+        self.buffer = deque(maxlen=max_size)
+        self.max_size = max_size
+        self.reversals = 0
+        self.track = track
+    
+    def update(self, val):
+        self.buffer.append(val)
+        self.reversals += 1
+
+    def print_stats(self, trial):
+        threshold = None if len(self.buffer) == 0 else sum(self.buffer) / len(self.buffer)
+        print('')
+        print(f"\033[92m|** Track:{self.track} | Trial:{trial}\033[0m")
+        print(f"\033[92m|** Total Reversals: {self.reversals}\033[0m")
+        print(f"\033[92m|** Separations (last {self.max_size} reversals): {list(self.buffer)}\033[0m")
+        print(f"\033[92m|** Threshold: {threshold}\033[0m")
+        print('')
+
+def make_sep_plot(fname, data):
+    fig, ax = subplots()
+    sns.scatterplot(x=data['Trial'], y=data['Separation'],
+                    hue=data['Reversal'], ax=ax)
+    sns.lineplot(x=data['Trial'], y=data['Separation'], ax=ax)
+    # save figure
+    file_name = f"{fname}_figure.png"
+    fig.savefig(file_name)
+    print(f"SUCCESS: Saved plot in {file_name}")
+
 
 
 #result_dict = dfText2Dict('test_rev.txt')

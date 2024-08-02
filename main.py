@@ -27,6 +27,7 @@ import utils
 from datetime import datetime
 import subprocess
 
+
 # Optional: A logger to monitor activity... and debug.
 logging.basicConfig(format='%(asctime)s - %(threadName)s ø %(name)s - '
                     '%(levelname)s - %(message)s')
@@ -845,7 +846,7 @@ class ExptShell(cmd.Cmd):
         print(f"SUCCESS: Saved results in {file_name}")
         return
 
-    def process_trial(self, trial, separations, track_state : dict, results : dict, offsets=[0.0, 0.0], tracking=False):
+    def process_trial(self, trial, separations, track_state : dict, results : dict, offsets=[0.0, 0.0], tracking=False, mv_avg=None):
         '''Helper funtion to run a trial in a 3D1U track.'''
         # Do experiment
         cmds = trial.splitlines()
@@ -865,6 +866,7 @@ class ExptShell(cmd.Cmd):
         actual_dir = "right" if (final_angle - init_angle) >= 0 else "left"
 
         # Store entries in a dict
+        results['Trial'].append(track_state['curr_run'])
         results['Radial_Distance'].append(distance)
         results['Initial_Angle'].append(init_angle if not tracking else f'trkr+{init_angle}')
         results['Final_Angle'].append(final_angle if not tracking else f'trkr+{final_angle}')
@@ -889,6 +891,9 @@ class ExptShell(cmd.Cmd):
                     track_state['state'] = -1
                     track_state['curr_reversals'] += 1
                     results["Reversal"][-1] = '*'
+                    if mv_avg is not None:
+                        mv_avg.update(results['Separation'][-1])
+                        
 
         # If incorrect Response
         elif recorded_dir != actual_dir:  # one up
@@ -903,22 +908,24 @@ class ExptShell(cmd.Cmd):
                 track_state['state'] = 1
                 track_state['curr_reversals'] += 1
                 results["Reversal"][-1] = '*'
+                if mv_avg is not None:
+                        mv_avg.update(results['Separation'][-1])
         
         track_state['curr_run'] += 1
+        mv_avg.print_stats(trial=track_state['curr_run'])
 
-    def process_results(self, results : dict):
+    def process_results(self, results : dict, fname=None, track=None):
         '''Helper funtion to process the results of a 3D1U track.'''
         # Write results to text file
-        file_name = input('Enter .txt filename to write results to: ')
-        with open(file_name, 'w+'):
-            pass
+        if fname is None:
+            file_name = input('Enter .csv filename to write results to: ')
+        else:
+            file_name = f"{fname}_track{track}"
 
         df = pd.DataFrame(data=results)
-        with open(file_name, 'a') as f:
-            f.write(df.to_string())
-
-        print(f"SUCCESS: Saved results in {file_name}")
-
+        df.to_csv(file_name+'.csv', index=False)
+        print(f"SUCCESS: Saved results in {file_name}.csv")
+        utils.make_sep_plot(fname=file_name, data=df)
         acc = np.mean([1 if a == b else 0 for a,
                       b in zip(results["Recorded_Direction"], results['Direction'])])
         print(f"Accuracy: {acc}\n")
@@ -960,6 +967,7 @@ class ExptShell(cmd.Cmd):
             return
 
         results = {
+            "Trial": [],
             "Radial_Distance": [],
             "Initial_Angle": [],
             "Final_Angle": [],
@@ -1003,25 +1011,52 @@ class ExptShell(cmd.Cmd):
     def do_3D1U_ST_Fixed(self, arg):
         '''
         Run a variant of three-down-one-up experiment: 3D1U_FT_Fixed reversals target_angle distance\n
-        untracked version: 3D1U_FT_Fixed reversals target_angle distance\n
+        untracked version: 3D1U_FT_Fixed reversals target_angle distance
         tracked version: 3D1U_FT_Fixed reversals\n
+        User will be prompted to label the experiment in the beginning.
+        Output files will be named as: entered_label_track#.csv & entered_label_track#_figure.png
+        User will be prompted to enter soundfiles for each interval
+        If two soundfiles entered: sound1 -> interval1, sound2 -> interval2 
+        If one soundfile entered: sound1 -> interval1 & interval2
+        if follow_the_location: sound1 -> left, sound2 -> right
+        !!follow_the_location will raise an error if one soundfile is entered
         '''
         arg = arg.split()
         if not (len(arg) == 3 or len(arg) == 1):
             print("Error: see usage (hint: help 3D1U_ST_Fixed)")
             return
         
+        fname = input('Label experiment (used for filename): ')
         tracking = len(arg) == 1
+        filename1, filename2 = None, None
 
 
         try:
+            filenames = input("Enter soundfiles to play for each interval: ")
+            filenames = filenames.split()
+            if len(filenames) > 2:
+                raise ValueError("Enter at-most two soundfiles to play per interval.")
+            elif len(filenames) == 2:
+                filename1, filename2 = filenames
+            elif len(filenames) == 1:
+                filename1 = filenames[0]
+
+            follow_the_location = input("Follow the location [y/n]? : ")
+            if not (follow_the_location == 'y' or follow_the_location == 'n'):
+                raise ValueError("Invalid argument! Enter 'y' or 'n'!")
+            if (follow_the_location == 'y' and len(filenames) != 2):
+                raise ValueError("Invalid setting! Two soundfiles must be entered for follow_the_location!")
+            
+            follow_the_location = True if follow_the_location == 'y' else False
             reversals = int(arg[0])
             target_angle = None if tracking else float(arg[1])
             dist =  None if tracking else float(arg[2])
             tab  = input("Enter trial iPad tab [1/2]: ")
             tab  = int(tab)  
             offsets = '0.0 0.0' if not tracking else input("Enter angle and (normalized)radial offsets wrt tracker: ")
-            offsets = [float(elem) for elem in offsets.split()] 
+            offsets = [float(elem) for elem in offsets.split()]
+            if len(offsets) != 2:
+                raise ValueError("Missing arguments while entering offsets.")  
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
@@ -1036,10 +1071,14 @@ class ExptShell(cmd.Cmd):
             print("Parse Error: Enter valid values")
             return
         
+        now = datetime.now()
+        now = now.strftime("%Y-%m-%d %H:%M:%S")
+
         # Set appropriate iPad tab for experiment
         self.do_set_ipad_tab(f'{tab}')
 
         results = {
+            "Trial": [],
             "Radial_Distance": [],
             "Initial_Angle": [],
             "Final_Angle": [],
@@ -1047,6 +1086,21 @@ class ExptShell(cmd.Cmd):
             "Direction": [],
             "Recorded_Direction": [],
             "Reversal": [],
+
+            ## Track Parameters
+            "#Git_Commit_Hash": [self.GIT_COMMIT],
+            "#Track_Start_Time": [now],
+            "#Track_Type": [("Tracked" if tracking else "Static")],
+            "#Sound_File1": [filename1],
+            "#Sound_File2": [filename2],
+            "#Follow_the_location": [follow_the_location],
+            "#Target_Angle": [target_angle],
+            "#Track_Tab": [tab],
+            "#Offsets_from_Tracker": [offsets],
+            "#Ranges": [ranges],
+            "#Step_Sizes": [step_sizes],
+            "#Repeats_Interval1": [repeats1],
+            "#Repeats_Interval2": [repeats2],
         }
 
         # State Variables
@@ -1060,6 +1114,7 @@ class ExptShell(cmd.Cmd):
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        mv_avg = utils.MvAverage(track=1)
 
         while track_state['curr_reversals'] != reversals:
             self.pos_queue.clear()
@@ -1068,12 +1123,16 @@ class ExptShell(cmd.Cmd):
             # Generate experiment
             inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
             trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                               offsets=offsets, input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
+                                               offsets=offsets, input_type=inp_type, 
+                                               repeat1=repeats1, repeat2=repeats2,
+                                               filename1=filename1, filename2=filename2, 
+                                               follow_the_location=follow_the_location)
 
-            self.process_trial(trial, separations, track_state, results, offsets=offsets, tracking=tracking)
+            self.process_trial(trial, separations, track_state, results, 
+                               offsets=offsets, tracking=tracking, mv_avg=mv_avg)
 
         # Write results to text file
-        self.process_results(results)
+        self.process_results(results, fname=fname, track=1)
         # Return to init state
         self.return_to_defaults()
         return
@@ -1105,6 +1164,7 @@ class ExptShell(cmd.Cmd):
             return
 
         results = {
+            "Trial": [],
             "Radial_Distance": [],
             "Initial_Angle": [],
             "Final_Angle": [],
@@ -1146,8 +1206,15 @@ class ExptShell(cmd.Cmd):
     def do_3D1U_FT_Fixed(self, arg):
         '''
         Run a variant of three-down-one-up experiment:\n
-        untracked version: 3D1U_FT_Fixed runs target_angle distance\n
+        untracked version: 3D1U_FT_Fixed runs target_angle distance
         tracked version: 3D1U_FT_Fixed runs\n
+        User will be prompted to label the experiment in the beginning. 
+        Output files will be named as: entered_label_track#.csv & entered_label_track#_figure.png
+        User will be prompted to enter soundfiles for each interval
+        If two soundfiles entered: sound1 -> interval1, sound2 -> interval2 
+        If one soundfile entered: sound1 -> interval1 & interval2
+        if follow_the_location: sound1 -> left, sound2 -> right
+        !!follow_the_location will raise an error if one soundfile is entered
         '''
         
         arg = arg.split()
@@ -1156,15 +1223,33 @@ class ExptShell(cmd.Cmd):
             return
         
         tracking = len(arg) == 1
+        filename1, filename2 = None, None
+        fname = input('Label experiment (used for filename): ')
 
         try:
+            filenames = input("Enter soundfiles to play for each interval: ")
+            filenames = filenames.split()
+            if len(filenames) > 2:
+                raise ValueError("Enter at-most two soundfiles to play per interval.")
+            elif len(filenames) == 2:
+                filename1, filename2 = filenames
+            elif len(filenames) == 1:
+                filename1 = filenames[0]
+            follow_the_location = input("Follow the location [y/n]? : ")
+            if not (follow_the_location == 'y' or follow_the_location == 'n'):
+                raise ValueError("Invalid argument! Enter 'y' or 'n'!")
+            if (follow_the_location == 'y' and len(filenames) != 2):
+                raise ValueError("Invalid setting! Two soundfiles must be entered for follow_the_location!")
+            follow_the_location = True if follow_the_location == 'y' else False
             runs = int(arg[0]) 
             target_angle = None if tracking else float(arg[1]) 
             dist =  None if tracking else float(arg[2])
             tab  = input("Enter trial iPad tab [1/2]: ")
             tab  = int(tab)
             offsets = '0.0 0.0' if not tracking else input("Enter angle and (normalized)radial offsets wrt tracker: ")
-            offsets = [float(elem) for elem in offsets.split()] 
+            offsets = [float(elem) for elem in offsets.split()]
+            if len(offsets) != 2:
+                raise ValueError("Missing arguments while entering offsets.") 
             ranges = input("Enter ranges: ")
             ranges = [float(elem) for elem in ranges.split()]
             step_sizes = input("Enter step sizes: ")
@@ -1186,6 +1271,7 @@ class ExptShell(cmd.Cmd):
         self.do_set_ipad_tab(f'{tab}')
 
         results = {
+            "Trial": [],
             "Radial_Distance": [],
             "Initial_Angle": [],
             "Final_Angle": [],
@@ -1198,6 +1284,9 @@ class ExptShell(cmd.Cmd):
             "#Git_Commit_Hash": [self.GIT_COMMIT for _ in range(runs)],
             "#Track_Start_Time": [now for _ in range(runs)],
             "#Track_Type": [("Tracked" if tracking else "Static") for _ in range(runs)],
+            "#Sound_File1": [filename1 for _ in range(runs)],
+            "#Sound_File2": [filename2 for _ in range(runs)],
+            "#Follow_the_location": [follow_the_location for _ in range(runs)],
             "#Target_Angle": [target_angle for _ in range(runs)],
             "#Track_Tab": [tab for _ in range(runs)],
             "#Offsets_from_Tracker": [offsets for  _ in range(runs)],
@@ -1218,6 +1307,7 @@ class ExptShell(cmd.Cmd):
         }
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        mv_avg = utils.MvAverage(track=1)
 
         while track_state['curr_run'] != runs:
             self.pos_queue.clear()
@@ -1226,27 +1316,42 @@ class ExptShell(cmd.Cmd):
             # Generate experiment
             inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
             trial = p.deterministic_two_source(1, target_angle, track_state['sep'], dist, 
-                                               offsets=offsets, input_type=inp_type, repeat1=repeats1, repeat2=repeats2)
+                                               offsets=offsets, input_type=inp_type, 
+                                               repeat1=repeats1, repeat2=repeats2,
+                                               filename1=filename1, filename2=filename2, 
+                                               follow_the_location=follow_the_location)
 
-            self.process_trial(trial, separations, track_state, results, offsets=offsets, tracking=tracking)
+            self.process_trial(trial, separations, track_state, results, offsets=offsets, 
+                               tracking=tracking, mv_avg=mv_avg)
 
         # Write results to text file
-        self.process_results(results)
+        self.process_results(results, fname=fname, track=1)
 
         # Return to init state
         self.return_to_defaults()
         return
 
     def do_3D1U_Interleaved(self, arg):
-        'Run the interleaved three-down-one-up experiment: 3D1U_Interleaved runs soundfile0 soundfile1 ...'
+        '''
+        Run the interleaved three-down-one-up experiment:\n
+        3D1U_Interleaved runs num_tracks\n
+        User will be prompted to label the experiment in the beginning.
+        Output files will be named as: entered_label_track#.csv & entered_label_track#_figure.png
+        User will be prompted to enter soundfiles for each interval in each track\n
+        So, for each track,
+        If two soundfiles entered: sound1 -> interval1, sound2 -> interval2 
+        If one soundfile entered: sound1 -> interval1 & interval2
+        if follow_the_location: sound1 -> left, sound2 -> right
+        !!follow_the_location will raise an error if one soundfile is entered
+        '''
 
         arg = arg.split()
-        if len(arg) < 3:
+        if len(arg) != 2 :
             print("Error: see usage (hint: help 3D1U_Interleaved)")
             return
         try:
             runs = int(arg[0])
-            soundfiles = arg[1:]
+            num_tracks = int(arg[1])
         except:
             print("Parse Error: Enter valid values")
             return
@@ -1256,36 +1361,60 @@ class ExptShell(cmd.Cmd):
         now = datetime.now()
         now = now.strftime("%Y-%m-%d %H:%M:%S")
 
-        for sf in soundfiles:
-            state_dict[sf] = {}
+        fname = input('Label experiment (used for filename): ')
+
+        for track in range(num_tracks):
+            state_dict[track] = {}
             params = input(
-                f'Press enter if tracking else enter target_angle(f) distance(f) for {sf}: ')
+                f'Press enter if tracking else enter target_angle(f) distance(f) for track{track+1}: ')
             params = params.split()
 
             if not (len(params) == 2 or len(params) == 0):
                 print("Error: see usage (hint: help 3D1U_Interleaved)")
                 return
         
-            state_dict[sf]['tracking'] = len(params) == 0
+            state_dict[track]['tracking'] = len(params) == 0
+            state_dict[track]['filename1'], state_dict[track]['filename2'] = None, None
+            
 
-            try: 
-                state_dict[sf]['target_angle'] = None if state_dict[sf]['tracking'] else float(params[0])
-                state_dict[sf]['dist'] = None if state_dict[sf]['tracking'] else float(params[1])
-                tab  = input(f"Enter trial iPad tab [1/2] for {sf}: ")
-                state_dict[sf]['tab']  = int(tab)
-                offsets = '0.0 0.0' if not state_dict[sf]['tracking'] else input(f"Enter angle and (normalized)radial offsets wrt tracker for {sf}: ")
-                state_dict[sf]['offsets'] = [float(elem) for elem in offsets.split()] 
-                ranges = input(f"Enter ranges for {sf}: ")
-                ranges = [float(elem) for elem in ranges.split()]
-                step_sizes = input(f"Enter step sizes for {sf}: ")
-                step_sizes = [float(elem) for elem in step_sizes.split()]
-                start_idx, state_dict[sf]['separations'] = utils.get_separations(ranges, step_sizes)
-                repeats1 = input("Enter repetions for interval1: ")
-                state_dict[sf]['repeats1'] = int(repeats1)
-                repeats2 = input("Enter repetions for interval2: ")
-                state_dict[sf]['repeats2'] = int(repeats2)
+            try:
+                filenames = input(f"Enter soundfiles to play for each interval in track{track+1}: ")
+                filenames = filenames.split()
+
+                if len(filenames) > 2:
+                    raise ValueError("Enter at-most two soundfiles to play per interval.")
+                elif len(filenames) == 2:
+                    state_dict[track]['filename1'], state_dict[track]['filename2'] = filenames
+                elif len(filenames) == 1:
+                    state_dict[track]['filename1'] = filenames[0]
+
+                follow_the_location = input("Follow the location [y/n]? : ")
+                if not (follow_the_location == 'y' or follow_the_location == 'n'):
+                    raise ValueError("Invalid argument! Enter 'y' or 'n'!")
+                if (follow_the_location == 'y' and len(filenames) != 2):
+                    raise ValueError("Invalid setting! Two soundfiles must be entered for follow_the_location!")
                 
-                state_dict[sf]['results'] = {
+                state_dict[track]['follow_the_location'] = True if follow_the_location == 'y' else False
+                state_dict[track]['target_angle'] = None if state_dict[track]['tracking'] else float(params[0])
+                state_dict[track]['dist'] = None if state_dict[track]['tracking'] else float(params[1])
+                tab  = input(f"Enter trial iPad tab [1/2] for track{track+1}: ")
+                state_dict[track]['tab']  = int(tab)
+                offsets = '0.0 0.0' if not state_dict[track]['tracking'] else input(f"Enter angle and (normalized)radial offsets wrt tracker for track{track+1}: ")
+                state_dict[track]['offsets'] = [float(elem) for elem in offsets.split()]
+                if len(state_dict[track]['offsets']) != 2:
+                    raise ValueError("Missing arguments while entering offsets.")  
+                ranges = input(f"Enter ranges for track{track+1}: ")
+                ranges = [float(elem) for elem in ranges.split()]
+                step_sizes = input(f"Enter step sizes for track{track+1}: ")
+                step_sizes = [float(elem) for elem in step_sizes.split()]
+                start_idx, state_dict[track]['separations'] = utils.get_separations(ranges, step_sizes)
+                repeats1 = input("Enter repetions for interval1: ")
+                state_dict[track]['repeats1'] = int(repeats1)
+                repeats2 = input("Enter repetions for interval2: ")
+                state_dict[track]['repeats2'] = int(repeats2)
+                
+                state_dict[track]['results'] = {
+                    "Trial": [],
                     "Radial_Distance": [],
                     "Initial_Angle": [],
                     "Final_Angle": [],
@@ -1296,25 +1425,29 @@ class ExptShell(cmd.Cmd):
 
                     ## Track Parameters
                     "#Git_Commit_Hash": [self.GIT_COMMIT for _ in range(runs)],
-                    "#Sound_File": [sf for _ in range(runs)],
+                    "#Track": [track+1 for _ in range(runs)],
+                    "#Sound_File1": [state_dict[track]['filename1'] for _ in range(runs)],
+                    "#Sound_File2": [state_dict[track]['filename2'] for _ in range(runs)],
+                    "#Follow_the_location": [state_dict[track]['follow_the_location'] for _ in range(runs)],
                     "#Track_Start_Time": [now for _ in range(runs)],
-                    "#Track_Type": [("Tracked" if state_dict[sf]['tracking'] else "Static") for _ in range(runs)],
-                    "#Target_Angle": [state_dict[sf]['target_angle'] for _ in range(runs)],
-                    "#Track_Tab": [state_dict[sf]['tab'] for _ in range(runs)],
-                    "#Offsets_from_Tracker": [state_dict[sf]['offsets'] for  _ in range(runs)],
+                    "#Track_Type": [("Tracked" if state_dict[track]['tracking'] else "Static") for _ in range(runs)],
+                    "#Target_Angle": [state_dict[track]['target_angle'] for _ in range(runs)],
+                    "#Track_Tab": [state_dict[track]['tab'] for _ in range(runs)],
+                    "#Offsets_from_Tracker": [state_dict[track]['offsets'] for  _ in range(runs)],
                     "#Ranges": [ranges for _ in range(runs)],
                     "#Step_Sizes": [step_sizes for _ in range(runs)],
-                    "#Repeats_Interval1": [state_dict[sf]['repeats1'] for  _ in range(runs)],
-                    "#Repeats_Interval2": [state_dict[sf]['repeats2'] for  _ in range(runs)],
+                    "#Repeats_Interval1": [state_dict[track]['repeats1'] for  _ in range(runs)],
+                    "#Repeats_Interval2": [state_dict[track]['repeats2'] for  _ in range(runs)],
                 }
 
-                state_dict[sf]['track_state'] = {
+                state_dict[track]['track_state'] = {
                     'correctInaRow' : 0,
                     'curr_reversals': 0,
                     'curr_run': 0,
                     'state': -1,
                     'sep_idx': start_idx,
-                    'sep': state_dict[sf]['separations'][start_idx]
+                    'sep': state_dict[track]['separations'][start_idx],
+                    'mv_avg': utils.MvAverage(track=track+1)
                 }
             except Exception as e:
                 print(str(e))
@@ -1322,39 +1455,45 @@ class ExptShell(cmd.Cmd):
                 return
 
         p = preset_generator.PresetGenerator(self.NUM_SOURCES)
+        
 
         curr_run = 0
         prev_tab = None
         while curr_run != runs:
-            for sf in state_dict.keys():
+            for track in state_dict.keys():
                 
                 self.pos_queue.clear()
                 self.input_queue.clear()
 
-                curr_tab = state_dict[sf]['tab']
+                curr_tab = state_dict[track]['tab']
 
                 # Generate experiment
                 inp_type = 'ipad' if self.IPAD_AVAILABLE else 'keyboard'
-                trial = p.deterministic_two_source(1, state_dict[sf]['target_angle'], 
-                                                       state_dict[sf]['track_state']['sep'], 
-                                                       state_dict[sf]['dist'], 
-                                                       input_type=inp_type, filename=sf,
-                                                       offsets=state_dict[sf]['offsets'],
-                                                       repeat1=state_dict[sf]['repeats1'], 
-                                                       repeat2=state_dict[sf]['repeats2'],
+                trial = p.deterministic_two_source(1, state_dict[track]['target_angle'], 
+                                                       state_dict[track]['track_state']['sep'], 
+                                                       state_dict[track]['dist'], 
+                                                       input_type=inp_type, 
+                                                       filename1=state_dict[track]['filename1'],
+                                                       filename2=state_dict[track]['filename2'],
+                                                       follow_the_location=state_dict[track]['follow_the_location'],
+                                                       offsets=state_dict[track]['offsets'],
+                                                       repeat1=state_dict[track]['repeats1'], 
+                                                       repeat2=state_dict[track]['repeats2'],
                                                        tab=curr_tab if (prev_tab is None or prev_tab != curr_tab) else None)
 
                 prev_tab = curr_tab
                
 
-                self.process_trial(trial, state_dict[sf]['separations'], state_dict[sf]['track_state'], state_dict[sf]['results'],
-                                   offsets=state_dict[sf]['offsets'], tracking=state_dict[sf]['tracking'])
+                self.process_trial(trial, state_dict[track]['separations'], state_dict[track]['track_state'], 
+                                   state_dict[track]['results'], offsets=state_dict[track]['offsets'], 
+                                   tracking=state_dict[track]['tracking'], 
+                                   mv_avg=state_dict[track]['track_state']['mv_avg'])
             curr_run += 1
 
-        for sf in state_dict.keys():
+        for track in state_dict.keys():
             # Write results to text file
-            print(f"Processing {sf}...")
-            self.process_results(state_dict[sf]['results'])
+            print(f"Processing track{track+1}...")
+            self.process_results(state_dict[track]['results'], fname=fname, track=track+1)
 
         # Return to init state
         self.return_to_defaults()

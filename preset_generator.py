@@ -129,7 +129,11 @@ class PresetGenerator:
 
         return self.write_to_str()
 
-    def deterministic_two_source(self, runs, target_angle, sep, dist, repeat1=0, repeat2=0, offsets=[0.0, 0.0], input_type='keyboard', filename=None, tab=None):
+    def deterministic_two_source(self, runs, target_angle, sep, dist, 
+                                 repeat1=0, repeat2=0, offsets=[0.0, 0.0], 
+                                 input_type='keyboard', filename1=None, filename2=None, 
+                                 tab=None, follow_the_location=False):
+        
         if input_type == 'keyboard':
             input_fn = self.key_user_input
         elif input_type == 'ipad':
@@ -149,8 +153,14 @@ class PresetGenerator:
             angle1 = None if tracking else target_angle + sep1
             angle2 = None if tracking else target_angle + sep2
 
-            if filename is not None:
-                self.test_signal(filename)
+            if filename1 is not None:
+                if not follow_the_location:
+                    self.test_signal(filename1)
+                else:
+                    if sep2 > sep1: # Left to right
+                        self.test_signal(filename1)
+                    else: # Right to left
+                        self.test_signal(filename2)
             
             if not tracking:
                 self.set_pos(1, angle1, dist)
@@ -162,9 +172,24 @@ class PresetGenerator:
                 self.set_ipad_tab(tab)
 
             if repeat1 > 0:
-                self.num_loop(repeat1)
+                if follow_the_location:
+                    if sep2 > sep1: # Left to right
+                        self.num_loop(repeat1)
+                    else: # Right to left
+                        self.num_loop(repeat2)
+                else:
+                    self.num_loop(repeat1)
                 self.loop(1)     
             self.play()
+
+            if filename2 is not None:
+                if not follow_the_location:
+                    self.test_signal(filename2)
+                else:
+                    if sep2 > sep1: # Left to right
+                        self.test_signal(filename2)
+                    else: # Right to left
+                        self.test_signal(filename1)
             
             if not tracking:
                 self.set_pos(1, angle2, dist)
@@ -172,7 +197,13 @@ class PresetGenerator:
                 self.set_pos_rel_tracker(1, sep2)
             
             if repeat2 > 0:
-                self.num_loop(repeat2)
+                if follow_the_location:
+                    if sep2 > sep1: # Left to right
+                        self.num_loop(repeat2)
+                    else: # Right to left
+                        self.num_loop(repeat1)
+                else:
+                    self.num_loop(repeat2)
                 self.loop(1)    
             self.play()
             
